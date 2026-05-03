@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meridian SOC — SIEM Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#111; color:#e0e0e0; font-family:'DM Sans',sans-serif; overflow-x:hidden; }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:#111; }
+  ::-webkit-scrollbar-thumb { background:#333; border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:#555; }
+  input::placeholder { color:#555; }
+  select { -webkit-appearance:none; }
+  button { font-family:inherit; }
+  table { font-family:'JetBrains Mono',monospace; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useEffect, useRef } = React;
+
+/* ═══════════════════════ DATA ═══════════════════════ */
+const LOGS = [
+  {t:"2024-03-04 08:01:23",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-04 08:03:45",src:"10.0.0.105",dst:"10.0.0.50",user:"jsmith",host:"WS-FIN-012",type:"email_recv",status:"success",detail:"From: vendor@acme-supply.com Subject: Invoice Q1",mal:false},
+  {t:"2024-03-04 08:15:02",src:"10.0.0.105",dst:"104.16.51.111",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"GET https://sharepoint.meridianfg.com/sites/finance",mal:false},
+  {t:"2024-03-04 08:22:17",src:"10.0.0.110",dst:"10.0.0.10",user:"agarcia",host:"WS-HR-003",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-04 08:30:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-04 08:45:33",src:"10.0.0.120",dst:"10.0.0.30",user:"bwilliams",host:"WS-IT-007",type:"ssh_login",status:"success",detail:"SSH to linux-web-01",mal:false},
+  {t:"2024-03-04 09:12:55",src:"10.0.0.115",dst:"10.0.0.50",user:"mchen",host:"WS-MGR-001",type:"email_send",status:"success",detail:"To: team@meridianfg.com Subject: Q1 Review Meeting",mal:false},
+  {t:"2024-03-04 09:30:22",src:"10.0.0.130",dst:"172.217.14.110",user:"tkumar",host:"WS-DEV-002",type:"web_browse",status:"success",detail:"GET https://stackoverflow.com/questions/python",mal:false},
+  {t:"2024-03-04 09:45:00",src:"10.0.0.140",dst:"10.0.0.10",user:"lrodriguez",host:"WS-OPS-015",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-04 10:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Screen unlock",mal:false},
+  {t:"2024-03-04 10:15:00",src:"10.0.0.135",dst:"10.0.0.50",user:"dpark",host:"WS-SALES-009",type:"email_recv",status:"success",detail:"From: client@bigcorp.com Subject: Contract renewal",mal:false},
+  {t:"2024-03-04 10:30:00",src:"10.0.0.110",dst:"10.0.0.50",user:"agarcia",host:"WS-HR-003",type:"email_send",status:"success",detail:"To: allstaff@meridianfg.com Subject: Office closure Friday",mal:false},
+  {t:"2024-03-04 10:42:18",src:"198.51.100.25",dst:"10.0.0.50",user:"external",host:"MAIL-GW-01",type:"email_recv",status:"success",detail:"From: hr-updates@merid1anfg.com Subject: Urgent: Benefits Enrollment Update To: jsmith@meridianfg.com",mal:true,attack:"phishing"},
+  {t:"2024-03-04 10:42:19",src:"198.51.100.25",dst:"10.0.0.50",user:"external",host:"MAIL-GW-01",type:"email_recv",status:"success",detail:"From: hr-updates@merid1anfg.com Subject: Urgent: Benefits Enrollment Update To: agarcia@meridianfg.com",mal:true,attack:"phishing"},
+  {t:"2024-03-04 10:42:20",src:"198.51.100.25",dst:"10.0.0.50",user:"external",host:"MAIL-GW-01",type:"email_recv",status:"success",detail:"From: hr-updates@merid1anfg.com Subject: Urgent: Benefits Enrollment Update To: lrodriguez@meridianfg.com",mal:true,attack:"phishing"},
+  {t:"2024-03-04 10:55:33",src:"10.0.0.105",dst:"198.51.100.30",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"GET https://merid1anfg-benefits.com/login.html",mal:true,attack:"credential_harvest"},
+  {t:"2024-03-04 10:56:12",src:"10.0.0.105",dst:"198.51.100.30",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"POST https://merid1anfg-benefits.com/submit.php credentials_submitted",mal:true,attack:"credential_harvest"},
+  {t:"2024-03-04 11:00:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Screen unlock",mal:false},
+  {t:"2024-03-04 12:05:00",src:"10.0.0.140",dst:"10.0.0.10",user:"lrodriguez",host:"WS-OPS-015",type:"login",status:"success",detail:"Screen unlock",mal:false},
+  {t:"2024-03-04 13:30:00",src:"10.0.0.105",dst:"10.0.0.50",user:"jsmith",host:"WS-FIN-012",type:"email_send",status:"success",detail:"To: manager@meridianfg.com Subject: Expense report Q1",mal:false},
+  {t:"2024-03-04 14:00:00",src:"10.0.0.110",dst:"172.217.14.110",user:"agarcia",host:"WS-HR-003",type:"web_browse",status:"success",detail:"GET https://workday.com/meridianfg/dashboard",mal:false},
+  {t:"2024-03-04 15:30:00",src:"10.0.0.130",dst:"10.0.0.10",user:"tkumar",host:"WS-DEV-002",type:"login",status:"failure",detail:"Bad password",mal:false},
+  {t:"2024-03-04 15:30:15",src:"10.0.0.130",dst:"10.0.0.10",user:"tkumar",host:"WS-DEV-002",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-04 17:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Logoff",mal:false},
+  {t:"2024-03-05 02:14:01",src:"185.220.101.42",dst:"10.0.0.10",user:"jsmith",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 02:14:02",src:"185.220.101.42",dst:"10.0.0.10",user:"jsmith",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 02:14:03",src:"185.220.101.42",dst:"10.0.0.10",user:"jsmith",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 02:14:05",src:"185.220.101.42",dst:"10.0.0.10",user:"jsmith",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 02:14:08",src:"185.220.101.42",dst:"10.0.0.10",user:"jsmith",host:"DC-01",type:"login",status:"success",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 03:30:00",src:"185.220.101.42",dst:"10.0.0.10",user:"admin",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 03:30:02",src:"185.220.101.42",dst:"10.0.0.10",user:"admin",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 03:30:04",src:"185.220.101.42",dst:"10.0.0.10",user:"administrator",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 03:30:06",src:"185.220.101.42",dst:"10.0.0.10",user:"svc_backup",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 08:05:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-05 08:10:00",src:"10.0.0.110",dst:"10.0.0.10",user:"agarcia",host:"WS-HR-003",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-05 08:15:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-05 09:00:00",src:"10.0.0.135",dst:"10.0.0.10",user:"dpark",host:"WS-SALES-009",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-05 10:00:00",src:"10.0.0.140",dst:"10.0.0.50",user:"lrodriguez",host:"WS-OPS-015",type:"email_recv",status:"success",detail:"From: support@vendor.com Subject: Ticket #4521 resolved",mal:false},
+  {t:"2024-03-05 14:00:00",src:"10.0.0.105",dst:"10.0.0.50",user:"jsmith",host:"WS-FIN-012",type:"email_send",status:"success",detail:"To: vendor@acme-supply.com Subject: Payment confirmation",mal:false},
+  {t:"2024-03-06 08:15:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon - Chicago office",mal:false},
+  {t:"2024-03-06 08:20:00",src:"10.0.0.110",dst:"10.0.0.10",user:"agarcia",host:"WS-HR-003",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-06 08:47:22",src:"91.234.56.78",dst:"10.0.0.10",user:"jsmith",host:"VPN-GW-01",type:"vpn_login",status:"success",detail:"VPN connection from Moscow, RU",mal:true,attack:"impossible_travel"},
+  {t:"2024-03-06 09:00:00",src:"10.0.0.120",dst:"10.0.0.30",user:"bwilliams",host:"WS-IT-007",type:"ssh_login",status:"success",detail:"SSH to linux-web-01 - routine maintenance",mal:false},
+  {t:"2024-03-06 10:30:00",src:"10.0.0.135",dst:"172.217.14.110",user:"dpark",host:"WS-SALES-009",type:"web_browse",status:"success",detail:"GET https://salesforce.com/meridianfg",mal:false},
+  {t:"2024-03-06 12:00:00",src:"10.0.0.140",dst:"10.0.0.10",user:"lrodriguez",host:"WS-OPS-015",type:"login",status:"success",detail:"Screen unlock",mal:false},
+  {t:"2024-03-07 01:15:00",src:"10.0.0.105",dst:"10.0.0.110",user:"jsmith",host:"WS-FIN-012",type:"smb_access",status:"success",detail:"Access \\\\WS-HR-003\\C$",mal:true,attack:"lateral_movement"},
+  {t:"2024-03-07 01:17:33",src:"10.0.0.105",dst:"10.0.0.120",user:"jsmith",host:"WS-FIN-012",type:"smb_access",status:"success",detail:"Access \\\\WS-IT-007\\ADMIN$",mal:true,attack:"lateral_movement"},
+  {t:"2024-03-07 01:20:00",src:"10.0.0.105",dst:"10.0.0.30",user:"jsmith",host:"WS-FIN-012",type:"ssh_login",status:"success",detail:"SSH to linux-web-01",mal:true,attack:"lateral_movement"},
+  {t:"2024-03-07 01:22:45",src:"10.0.0.105",dst:"N/A",user:"jsmith",host:"WS-FIN-012",type:"process_create",status:"success",detail:"powershell.exe -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0AA==",mal:true,attack:"powershell"},
+  {t:"2024-03-07 01:25:00",src:"10.0.0.105",dst:"198.51.100.50",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"POST https://pastebin.com/api/api_post.php",mal:true,attack:"exfiltration"},
+  {t:"2024-03-07 08:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-07 08:10:00",src:"10.0.0.110",dst:"10.0.0.10",user:"agarcia",host:"WS-HR-003",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-07 09:00:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-07 11:00:00",src:"10.0.0.130",dst:"172.217.14.110",user:"tkumar",host:"WS-DEV-002",type:"web_browse",status:"success",detail:"GET https://github.com/meridianfg/internal-tools",mal:false},
+  {t:"2024-03-08 02:00:00",src:"10.0.0.105",dst:"N/A",user:"SYSTEM",host:"WS-FIN-012",type:"scheduled_task",status:"success",detail:"Task: WindowsUpdate created by jsmith cmd: powershell.exe -ep bypass -f C:\\temp\\update.ps1",mal:true,attack:"persistence"},
+  {t:"2024-03-08 08:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-08 08:30:00",src:"10.0.0.110",dst:"10.0.0.50",user:"agarcia",host:"WS-HR-003",type:"email_send",status:"success",detail:"To: recruiting@meridianfg.com Subject: New hire onboarding checklist",mal:false},
+  {t:"2024-03-08 10:00:00",src:"10.0.0.135",dst:"10.0.0.50",user:"dpark",host:"WS-SALES-009",type:"email_recv",status:"success",detail:"From: prospect@techstart.io Subject: Demo request",mal:false},
+  {t:"2024-03-08 22:00:00",src:"10.0.0.105",dst:"198.51.100.50",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"POST https://transfer.sh/upload size:45MB",mal:true,attack:"exfiltration"},
+  {t:"2024-03-09 08:00:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-09 09:00:00",src:"10.0.0.130",dst:"10.0.0.10",user:"tkumar",host:"WS-DEV-002",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-09 10:00:00",src:"10.0.0.140",dst:"10.0.0.10",user:"lrodriguez",host:"WS-OPS-015",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-09 22:00:00",src:"10.0.0.105",dst:"198.51.100.50",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"POST https://transfer.sh/upload size:62MB",mal:true,attack:"exfiltration"},
+  {t:"2024-03-10 03:00:00",src:"10.0.0.105",dst:"N/A",user:"jsmith",host:"WS-FIN-012",type:"process_create",status:"success",detail:"cmd.exe /c vssadmin delete shadows /all /quiet",mal:true,attack:"defense_evasion"},
+  {t:"2024-03-10 03:05:00",src:"10.0.0.105",dst:"N/A",user:"jsmith",host:"WS-FIN-012",type:"process_create",status:"success",detail:"wevtutil.exe cl Security",mal:true,attack:"defense_evasion"},
+  {t:"2024-03-10 08:00:00",src:"10.0.0.110",dst:"10.0.0.10",user:"agarcia",host:"WS-HR-003",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-10 08:30:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-10 09:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
+];
+
+const ALERTS = [
+  {id:"ALT-001",sev:"critical",title:"Brute Force RDP \u2014 Multiple Failed Logins",time:"2024-03-05 02:14:01",src:"185.220.101.42",user:"jsmith",status:"new",mitre:"T1110.001",desc:"8 failed RDP logins followed by 1 success from Tor exit node 185.220.101.42 targeting user jsmith on DC-01. Logon Type 10 (Remote Interactive). Time: 02:14 AM (off-hours)."},
+  {id:"ALT-002",sev:"high",title:"Phishing \u2014 Typosquatted Domain Detected",time:"2024-03-04 10:42:18",src:"198.51.100.25",user:"jsmith, agarcia, lrodriguez",status:"new",mitre:"T1566.002",desc:"3 emails received from hr-updates@merid1anfg.com (note: '1' replacing 'i'). Subject: 'Urgent: Benefits Enrollment Update'. merid1anfg.com is NOT meridianfg.com."},
+  {id:"ALT-003",sev:"critical",title:"Impossible Travel \u2014 Simultaneous Logins",time:"2024-03-06 08:47:22",src:"91.234.56.78",user:"jsmith",status:"new",mitre:"T1078",desc:"jsmith logged in from Chicago (10.0.0.105) at 08:15 and Moscow, Russia (91.234.56.78) via VPN at 08:47. Gap: 32 minutes. Min travel: ~12 hours."},
+  {id:"ALT-004",sev:"critical",title:"Lateral Movement \u2014 Admin Share Access",time:"2024-03-07 01:15:00",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1021.002",desc:"jsmith accessed C$ on WS-HR-003, ADMIN$ on WS-IT-007, and SSH'd to linux-web-01 within 5 min at 01:15 AM. Finance users should never access admin shares."},
+  {id:"ALT-005",sev:"high",title:"Suspicious PowerShell \u2014 Encoded Command",time:"2024-03-07 01:22:45",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1059.001",desc:"Encoded PowerShell: powershell.exe -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0AA== Decoded: Invoke-WebRequest. Executed at 01:22 AM."},
+  {id:"ALT-006",sev:"high",title:"Persistence \u2014 Suspicious Scheduled Task",time:"2024-03-08 02:00:00",src:"10.0.0.105",user:"SYSTEM",status:"new",mitre:"T1053.005",desc:"Scheduled task 'WindowsUpdate' created by jsmith running: powershell.exe -ep bypass -f C:\\temp\\update.ps1. Legitimate Windows Update does not use this pattern."},
+  {id:"ALT-007",sev:"critical",title:"Data Exfiltration \u2014 Large Upload to transfer.sh",time:"2024-03-08 22:00:00",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1567.002",desc:"POST to transfer.sh with 45MB upload from WS-FIN-012 at 22:00. Normal: <5MB/day. Second upload: 62MB the following night."},
+  {id:"ALT-008",sev:"critical",title:"Defense Evasion \u2014 Log Clearing + Shadow Copy Deletion",time:"2024-03-10 03:00:00",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1070.001",desc:"Sequential: vssadmin delete shadows /all /quiet then wevtutil cl Security at 03:00 AM. Destroys forensic evidence and backup recovery."},
+];
+
+const SEV = {critical:"#ff4444",high:"#ff8c00",medium:"#ffd700",low:"#4fc3f7",info:"#8e8e93"};
+const MITRE = {"T1566.002":"Spearphishing Link","T1056.003":"Web Portal Capture","T1078":"Valid Accounts","T1110.001":"Password Guessing","T1021.002":"SMB Admin Shares","T1059.001":"PowerShell","T1053.005":"Scheduled Task","T1567.002":"Exfil to Cloud","T1070.001":"Clear Event Logs","T1005":"Data from Local System"};
+
+/* ═══════════════════════ ICONS (inline SVG) ═══════════════════════ */
+const I = {
+  shield: (c="#fff",s=18) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  search: (c="#6bbd5b",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+  bell: (c="#888",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  activity: (c="#6bbd5b",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+  alert: (c="#ff4444",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>,
+  lock: (c="#ff8c00",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  users: (c="#4fc3f7",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  globe: (c="#ff8c00",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>,
+  terminal: (c="#6bbd5b",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>,
+  eye: (c="#ffd700",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>,
+  chart: (c="#6bbd5b",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>,
+  skull: (c="#ff4444",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M8 20v2h8v-2"/><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M16 20a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20"/></svg>,
+  clock: (c="#888",s=10) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  x: (c="#666",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+  chevR: (c="#444",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>,
+  monitor: (c="#6bbd5b",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>,
+};
+
+/* ═══════════════════════ CHART COMPONENTS ═══════════════════════ */
+function TimeChart({data, width=700, height=180}) {
+  const ref = useRef();
+  useEffect(() => {
+    if(!ref.current||!data.length) return;
+    const svg = d3.select(ref.current); svg.selectAll("*").remove();
+    const m={top:20,right:20,bottom:35,left:45}, w=width-m.left-m.right, h=height-m.top-m.bottom;
+    const g = svg.append("g").attr("transform",`translate(${m.left},${m.top})`);
+    const x = d3.scaleBand().domain(data.map(d=>d.label)).range([0,w]).padding(0.3);
+    const y = d3.scaleLinear().domain([0,d3.max(data,d=>d.total)]).nice().range([h,0]);
+    g.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(x).tickSize(0)).selectAll("text").style("fill","#888").style("font-size","10px").attr("transform","rotate(-30)").style("text-anchor","end");
+    g.append("g").call(d3.axisLeft(y).ticks(5).tickSize(-w)).selectAll("text").style("fill","#888").style("font-size","10px");
+    g.selectAll(".tick line").style("stroke","#333"); g.selectAll(".domain").style("stroke","#444");
+    data.forEach(d => {
+      const failH = y(0)-y(d.fail), succH = y(0)-y(d.success);
+      g.append("rect").attr("x",x(d.label)).attr("y",h-failH-succH).attr("width",x.bandwidth()).attr("height",succH).attr("fill","#6bbd5b").attr("rx",2);
+      g.append("rect").attr("x",x(d.label)).attr("y",h-failH).attr("width",x.bandwidth()).attr("height",failH).attr("fill","#ff4444").attr("rx",2);
+    });
+  },[data,width,height]);
+  return React.createElement("svg",{ref,width,height});
+}
+
+function MiniBar({data, color="#6bbd5b", w=180, h=30}) {
+  const ref = useRef();
+  useEffect(() => {
+    if(!ref.current||!data.length) return;
+    const svg = d3.select(ref.current); svg.selectAll("*").remove();
+    const x = d3.scaleBand().domain(data.map((_,i)=>i)).range([0,w]).padding(0.4);
+    const y = d3.scaleLinear().domain([0,d3.max(data)]).range([h,4]);
+    data.forEach((v,i) => { svg.append("rect").attr("x",x(i)).attr("y",y(v)).attr("width",x.bandwidth()).attr("height",h-y(v)).attr("fill",color).attr("rx",2).attr("opacity",0.85); });
+  },[data,color,w,h]);
+  return React.createElement("svg",{ref,width:w,height:h});
+}
+
+function DonutChart({segments, size=120}) {
+  const ref = useRef();
+  useEffect(() => {
+    if(!ref.current) return;
+    const svg = d3.select(ref.current); svg.selectAll("*").remove();
+    const r = size/2-10, g = svg.append("g").attr("transform",`translate(${size/2},${size/2})`);
+    const pie = d3.pie().value(d=>d.value).sort(null);
+    const arc = d3.arc().innerRadius(r*0.6).outerRadius(r);
+    g.selectAll("path").data(pie(segments)).enter().append("path").attr("d",arc).attr("fill",d=>d.data.color).attr("stroke","#1e1e1e").attr("stroke-width",2);
+    g.append("text").attr("text-anchor","middle").attr("dy","0.35em").style("fill","#e0e0e0").style("font-size","18px").style("font-weight","700").text(segments.reduce((a,s)=>a+s.value,0));
+  },[segments,size]);
+  return React.createElement("svg",{ref,width:size,height:size});
+}
+
+function AttackTimeline({events}) {
+  return React.createElement("div",{style:{position:"relative",paddingLeft:24}},
+    React.createElement("div",{style:{position:"absolute",left:10,top:0,bottom:0,width:2,background:"#333"}}),
+    events.map((e,i) => React.createElement("div",{key:i,style:{display:"flex",gap:12,marginBottom:12,position:"relative"}},
+      React.createElement("div",{style:{position:"absolute",left:-18,top:6,width:10,height:10,borderRadius:"50%",background:SEV[e.sev]||"#6bbd5b",border:"2px solid #1e1e1e",zIndex:1}}),
+      React.createElement("div",{style:{flex:1,paddingLeft:8}},
+        React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          React.createElement("span",{style:{color:"#888",fontFamily:"'JetBrains Mono',monospace",fontSize:11}},e.time),
+          React.createElement("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:3,background:SEV[e.sev]+"22",color:SEV[e.sev],fontWeight:600,textTransform:"uppercase"}},e.mitre)
+        ),
+        React.createElement("div",{style:{color:"#e0e0e0",fontSize:13,fontWeight:600,marginTop:2}},e.title)
+      )
+    ))
+  );
+}
+
+/* ═══════════════════════ MAIN APP ═══════════════════════ */
+function App() {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState(null);
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [alertStatuses, setAlertStatuses] = useState({});
+  const [expandedLog, setExpandedLog] = useState(null);
+  const [timeRange, setTimeRange] = useState("7d");
+
+  const filteredLogs = useMemo(() => {
+    if(!searchResults) return LOGS;
+    const q = searchResults.toLowerCase();
+    return LOGS.filter(l => Object.values(l).some(v => String(v).toLowerCase().includes(q)));
+  },[searchResults]);
+
+  const handleSearch = () => {
+    if(!query.trim()){setSearchResults(null);setActiveTab("overview");return;}
+    let q = query.trim().toLowerCase().replace(/^index=\S*\s*/i,"").replace(/\|\s*search\s*/i,"").replace(/\|\s*head\s*\d*/i,"").replace(/"/g,"").trim();
+    if(q){setSearchResults(q);setActiveTab("events");}
+  };
+
+  const loginChart = useMemo(() => {
+    const days = ["Mar 4","Mar 5","Mar 6","Mar 7","Mar 8","Mar 9","Mar 10"];
+    return days.map(d => {
+      const dayLogs = LOGS.filter(l => l.type==="login" && l.t.includes("2024-03-"+d.split(" ")[1].padStart(2,"0")));
+      return {label:d,success:dayLogs.filter(l=>l.status==="success").length,fail:dayLogs.filter(l=>l.status==="failure").length,total:dayLogs.length};
+    });
+  },[]);
+
+  const topIPs = useMemo(() => {
+    const c={}; LOGS.filter(l=>l.status==="failure").forEach(l=>{c[l.src]=(c[l.src]||0)+1;});
+    return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  },[]);
+
+  const sevCounts = useMemo(() => {
+    const c={critical:0,high:0,medium:0,low:0};
+    ALERTS.forEach(a=>{c[a.sev]=(c[a.sev]||0)+1;});
+    return c;
+  },[]);
+
+  const tabs = [
+    {id:"overview",label:"Overview",icon:"chart"},
+    {id:"alerts",label:"Alerts",icon:"bell"},
+    {id:"events",label:"Events",icon:"terminal"},
+    {id:"investigation",label:"Investigate",icon:"eye"},
+    {id:"mitre",label:"ATT&CK",icon:"shield"},
+  ];
+
+  // Stat cards data
+  const stats = [
+    {label:"Total Events",value:LOGS.length,icon:I.activity,color:"#6bbd5b",spark:[3,7,5,8,4,6,9]},
+    {label:"Active Alerts",value:ALERTS.length,icon:I.alert,color:"#ff4444",spark:[0,0,2,3,1,1,1]},
+    {label:"Failed Logins",value:LOGS.filter(l=>l.type==="login"&&l.status==="failure").length,icon:I.lock,color:"#ff8c00",spark:[0,8,0,0,0,0,0]},
+    {label:"Unique Users",value:[...new Set(LOGS.map(l=>l.user))].length,icon:I.users,color:"#4fc3f7",spark:[6,7,5,7,5,4,6]},
+  ];
+
+  const typeBg = t => t==="login"?"#4fc3f722":t.includes("email")?"#ffd70022":t==="process_create"?"#ff444422":t==="smb_access"?"#ff8c0022":"#6bbd5b22";
+  const typeCol = t => t==="login"?"#4fc3f7":t.includes("email")?"#ffd700":t==="process_create"?"#ff4444":t==="smb_access"?"#ff8c00":"#6bbd5b";
+
+  return React.createElement("div",{style:{minHeight:"100vh",background:"#111",color:"#e0e0e0",fontFamily:"'DM Sans',sans-serif"}},
+    /* ─── TOP BAR ─── */
+    React.createElement("div",{style:{background:"#0d0d0d",borderBottom:"1px solid #222",padding:"8px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}},
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
+        React.createElement("div",{style:{width:32,height:32,borderRadius:6,background:"linear-gradient(135deg,#6bbd5b,#2d7d2d)",display:"flex",alignItems:"center",justifyContent:"center"}},I.shield("#fff",18)),
+        React.createElement("span",{style:{fontWeight:800,fontSize:15,letterSpacing:"-0.3px"}},"MERIDIAN"),
+        React.createElement("span",{style:{fontWeight:300,fontSize:15,color:"#6bbd5b"}},"SOC"),
+        React.createElement("span",{style:{fontSize:10,color:"#666",marginLeft:8,padding:"2px 8px",border:"1px solid #333",borderRadius:3}},"SIEM v9.2")
+      ),
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:16}},
+        React.createElement("div",{style:{position:"relative"}},I.bell("#888",16),
+          React.createElement("div",{style:{position:"absolute",top:-4,right:-4,width:14,height:14,borderRadius:7,background:"#ff4444",fontSize:9,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}},ALERTS.length)
+        ),
+        React.createElement("div",{style:{width:28,height:28,borderRadius:14,background:"#2d7d2d",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff"}},"MC")
+      )
+    ),
+
+    React.createElement("div",{style:{display:"flex"}},
+      /* ─── SIDEBAR ─── */
+      React.createElement("div",{style:{width:52,background:"#0d0d0d",borderRight:"1px solid #222",padding:"12px 0",display:"flex",flexDirection:"column",alignItems:"center",gap:4,minHeight:"calc(100vh - 54px)"}},
+        tabs.map(tab => {
+          const active = activeTab===tab.id;
+          const iconFn = tab.icon==="chart"?I.chart:tab.icon==="bell"?I.bell:tab.icon==="terminal"?I.terminal:tab.icon==="eye"?I.eye:I.shield;
+          return React.createElement("button",{key:tab.id,onClick:()=>setActiveTab(tab.id),title:tab.label,
+            style:{width:40,height:40,borderRadius:6,border:"none",background:active?"#1e3a1e":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}},
+            iconFn(active?"#6bbd5b":"#666",18),
+            tab.id==="alerts"&&React.createElement("div",{style:{position:"absolute",top:4,right:4,width:8,height:8,borderRadius:4,background:"#ff4444"}})
+          );
+        })
+      ),
+
+      /* ─── MAIN ─── */
+      React.createElement("div",{style:{flex:1,padding:20,maxHeight:"calc(100vh - 54px)",overflowY:"auto"}},
+        /* Search */
+        React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",background:"#1a1a1a",border:"1px solid #333",borderRadius:4,padding:"6px 12px",marginBottom:16}},
+          I.search("#6bbd5b",16),
+          React.createElement("input",{value:query,onChange:e=>setQuery(e.target.value),onKeyDown:e=>e.key==="Enter"&&handleSearch(),placeholder:'index=* | search ...',
+            style:{flex:1,background:"transparent",border:"none",color:"#e0e0e0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,outline:"none"}}),
+          React.createElement("button",{onClick:handleSearch,style:{background:"#6bbd5b",color:"#000",border:"none",borderRadius:3,padding:"4px 16px",fontWeight:700,cursor:"pointer",fontSize:12}},"Search")
+        ),
+
+        /* ═══ OVERVIEW ═══ */
+        activeTab==="overview"&&React.createElement("div",null,
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}},
+            stats.map((s,i) => React.createElement("div",{key:i,style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
+              React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
+                React.createElement("div",null,
+                  React.createElement("div",{style:{fontSize:11,color:"#888",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}},s.label),
+                  React.createElement("div",{style:{fontSize:28,fontWeight:800,letterSpacing:"-1px"}},s.value)
+                ),
+                React.createElement("div",{style:{width:32,height:32,borderRadius:6,background:s.color+"15",display:"flex",alignItems:"center",justifyContent:"center"}},s.icon)
+              ),
+              React.createElement("div",{style:{marginTop:8}},React.createElement(MiniBar,{data:s.spark,color:s.color}))
+            ))
+          ),
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12,marginBottom:20}},
+            React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
+              React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:12,display:"flex",alignItems:"center",gap:6}},I.activity("#6bbd5b",14)," Login Activity by Day",
+                React.createElement("span",{style:{marginLeft:"auto",display:"flex",gap:12,fontSize:11}},
+                  React.createElement("span",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement("span",{style:{width:8,height:8,borderRadius:2,background:"#6bbd5b"}})," Success"),
+                  React.createElement("span",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement("span",{style:{width:8,height:8,borderRadius:2,background:"#ff4444"}})," Failure")
+                )
+              ),
+              React.createElement(TimeChart,{data:loginChart,width:520,height:180})
+            ),
+            React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
+              React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:12,display:"flex",alignItems:"center",gap:6}},I.alert("#ff4444",14)," Alerts by Severity"),
+              React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"center",gap:20}},
+                React.createElement(DonutChart,{segments:[{value:sevCounts.critical,color:SEV.critical},{value:sevCounts.high,color:SEV.high}],size:120}),
+                React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:6}},
+                  Object.entries(sevCounts).filter(([_,v])=>v>0).map(([k,v])=>React.createElement("div",{key:k,style:{display:"flex",alignItems:"center",gap:8,fontSize:12}},
+                    React.createElement("span",{style:{width:8,height:8,borderRadius:2,background:SEV[k]}}),
+                    React.createElement("span",{style:{color:"#aaa",textTransform:"capitalize"}},k),
+                    React.createElement("span",{style:{fontWeight:700}},v)
+                  ))
+                )
+              )
+            )
+          ),
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}},
+            React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
+              React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:12,display:"flex",alignItems:"center",gap:6}},I.globe("#ff8c00",14)," Top Source IPs (Failed Logins)"),
+              topIPs.map(([ip,count],i) => React.createElement("div",{key:ip,style:{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:i<topIPs.length-1?"1px solid #282828":"none"}},
+                React.createElement("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12,flex:1}},ip),
+                React.createElement("div",{style:{width:120,height:6,background:"#282828",borderRadius:3,overflow:"hidden"}},
+                  React.createElement("div",{style:{width:`${(count/topIPs[0][1])*100}%`,height:"100%",background:count>3?"#ff4444":"#ff8c00",borderRadius:3}})
+                ),
+                React.createElement("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:"#ff4444",fontWeight:700,width:30,textAlign:"right"}},count)
+              ))
+            ),
+            React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
+              React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:12,display:"flex",alignItems:"center",gap:6}},I.skull("#ff4444",14)," Active Alerts"),
+              ALERTS.slice(0,5).map(a => React.createElement("div",{key:a.id,onClick:()=>{setSelectedAlert(a);setActiveTab("alerts");},
+                style:{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #282828",cursor:"pointer"}},
+                React.createElement("span",{style:{width:8,height:8,borderRadius:4,background:SEV[a.sev],flexShrink:0}}),
+                React.createElement("div",{style:{flex:1,minWidth:0}},
+                  React.createElement("div",{style:{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},a.title),
+                  React.createElement("div",{style:{fontSize:10,color:"#666"}},a.time)
+                ),
+                I.chevR("#444",14)
+              ))
+            )
+          )
+        ),
+
+        /* ═══ ALERTS ═══ */
+        activeTab==="alerts"&&React.createElement("div",{style:{display:selectedAlert?"grid":"block",gridTemplateColumns:selectedAlert?"1fr 1fr":"1fr",gap:16}},
+          React.createElement("div",null,
+            React.createElement("h2",{style:{margin:"0 0 12px",fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}},I.bell("#ff4444",16)," Alert Queue (",ALERTS.length,")"),
+            ALERTS.map(a => {
+              const st = alertStatuses[a.id]||a.status;
+              return React.createElement("div",{key:a.id,onClick:()=>setSelectedAlert(a),
+                style:{background:selectedAlert?.id===a.id?"#1e2e1e":"#1a1a1a",border:`1px solid ${selectedAlert?.id===a.id?"#6bbd5b44":"#282828"}`,borderRadius:8,padding:14,marginBottom:8,cursor:"pointer",borderLeft:`3px solid ${SEV[a.sev]}`,transition:"all 0.15s"}},
+                React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4}},
+                  React.createElement("span",{style:{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:3,background:SEV[a.sev]+"22",color:SEV[a.sev],textTransform:"uppercase"}},a.sev),
+                  React.createElement("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#666"}},a.id),
+                  React.createElement("span",{style:{fontSize:10,padding:"2px 6px",borderRadius:3,background:st==="new"?"#ff444422":st==="investigating"?"#ffd70022":"#6bbd5b22",color:st==="new"?"#ff4444":st==="investigating"?"#ffd700":"#6bbd5b"}},st)
+                ),
+                React.createElement("div",{style:{fontSize:13,fontWeight:700}},a.title),
+                React.createElement("div",{style:{fontSize:11,color:"#888",marginTop:4,display:"flex",gap:16}},
+                  React.createElement("span",null,I.clock("#888",10)," ",a.time),
+                  React.createElement("span",null,I.globe("#888",10)," ",a.src)
+                )
+              );
+            })
+          ),
+          selectedAlert&&React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:20,position:"sticky",top:0,maxHeight:"calc(100vh - 120px)",overflowY:"auto"}},
+            React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}},
+              React.createElement("div",null,
+                React.createElement("span",{style:{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:3,background:SEV[selectedAlert.sev]+"22",color:SEV[selectedAlert.sev],textTransform:"uppercase"}},selectedAlert.sev),
+                React.createElement("h3",{style:{margin:"8px 0 0",fontSize:15,fontWeight:700}},selectedAlert.title)
+              ),
+              React.createElement("button",{onClick:()=>setSelectedAlert(null),style:{background:"none",border:"none",cursor:"pointer"}},I.x("#666",16))
+            ),
+            React.createElement("div",{style:{background:"#111",borderRadius:6,padding:14,marginBottom:16,fontSize:12,lineHeight:1.8,color:"#ccc",fontFamily:"'JetBrains Mono',monospace"}},selectedAlert.desc),
+            React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}},
+              [["Source IP",selectedAlert.src],["User",selectedAlert.user],["MITRE",selectedAlert.mitre+" \u2014 "+(MITRE[selectedAlert.mitre]||"")],["Time",selectedAlert.time]].map(([k,v])=>
+                React.createElement("div",{key:k,style:{background:"#111",borderRadius:4,padding:10}},
+                  React.createElement("div",{style:{fontSize:10,color:"#666",textTransform:"uppercase",marginBottom:4}},k),
+                  React.createElement("div",{style:{fontSize:12,fontFamily:"'JetBrains Mono',monospace"}},v)
+                )
+              )
+            ),
+            React.createElement("div",{style:{display:"flex",gap:8}},
+              ["investigating","escalated","closed"].map(s=>React.createElement("button",{key:s,onClick:()=>setAlertStatuses({...alertStatuses,[selectedAlert.id]:s}),
+                style:{flex:1,padding:"8px 0",borderRadius:4,border:`1px solid ${s==="investigating"?"#ffd700":s==="escalated"?"#ff4444":"#6bbd5b"}44`,background:s==="investigating"?"#ffd70011":s==="escalated"?"#ff444411":"#6bbd5b11",color:s==="investigating"?"#ffd700":s==="escalated"?"#ff4444":"#6bbd5b",fontSize:11,fontWeight:700,cursor:"pointer",textTransform:"capitalize"}},s))
+            )
+          )
+        ),
+
+        /* ═══ EVENTS ═══ */
+        activeTab==="events"&&React.createElement("div",null,
+          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
+            React.createElement("h2",{style:{margin:0,fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}},I.terminal("#6bbd5b",16)," Events",
+              searchResults&&React.createElement("span",{style:{fontSize:12,color:"#888",fontWeight:400}},' \u2014 filtered by "',searchResults,'" (',filteredLogs.length," results)")
+            ),
+            searchResults&&React.createElement("button",{onClick:()=>{setSearchResults(null);setQuery("");},style:{background:"#ff444422",border:"1px solid #ff444444",color:"#ff4444",borderRadius:4,padding:"4px 12px",fontSize:11,cursor:"pointer"}},"Clear")
+          ),
+          React.createElement("div",{style:{overflowX:"auto"}},
+            React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
+              React.createElement("thead",null,React.createElement("tr",{style:{borderBottom:"2px solid #333"}},
+                ["Time","Src IP","Dst IP","User","Host","Type","Status","Details"].map(h=>React.createElement("th",{key:h,style:{textAlign:"left",padding:"8px 10px",fontSize:10,textTransform:"uppercase",color:"#888",fontWeight:600,letterSpacing:"0.5px"}},h))
+              )),
+              React.createElement("tbody",null,
+                filteredLogs.map((l,i)=>React.createElement("tr",{key:i,onClick:()=>setExpandedLog(expandedLog===i?null:i),
+                  style:{borderBottom:"1px solid #1e1e1e",cursor:"pointer",background:expandedLog===i?"#1e2e1e":i%2===0?"#161616":"#1a1a1a"}},
+                  React.createElement("td",{style:{padding:"6px 10px",color:"#888",whiteSpace:"nowrap"}},l.t),
+                  React.createElement("td",{style:{padding:"6px 10px",color:!l.src.startsWith("10.")&&l.src!=="N/A"?"#ff8c00":"#e0e0e0"}},l.src),
+                  React.createElement("td",{style:{padding:"6px 10px"}},l.dst),
+                  React.createElement("td",{style:{padding:"6px 10px",color:"#4fc3f7"}},l.user),
+                  React.createElement("td",{style:{padding:"6px 10px",color:"#aaa"}},l.host),
+                  React.createElement("td",{style:{padding:"6px 10px"}},React.createElement("span",{style:{padding:"2px 6px",borderRadius:3,fontSize:10,background:typeBg(l.type),color:typeCol(l.type)}},l.type)),
+                  React.createElement("td",{style:{padding:"6px 10px"}},React.createElement("span",{style:{color:l.status==="success"?"#6bbd5b":"#ff4444",fontWeight:600}},l.status)),
+                  React.createElement("td",{style:{padding:"6px 10px",color:"#aaa",maxWidth:300,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},l.detail)
+                ))
+              )
+            )
+          )
+        ),
+
+        /* ═══ INVESTIGATION ═══ */
+        activeTab==="investigation"&&React.createElement("div",null,
+          React.createElement("h2",{style:{margin:"0 0 16px",fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}},I.eye("#ffd700",16)," Investigation \u2014 Operation Credential Harvest"),
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}},
+            React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
+              React.createElement("h3",{style:{margin:"0 0 12px",fontSize:14,fontWeight:700,color:"#ffd700"}},"Attack Timeline"),
+              React.createElement(AttackTimeline,{events:[
+                {time:"Mar 4, 10:42",title:"Phishing emails delivered (3 recipients)",sev:"high",mitre:"T1566.002"},
+                {time:"Mar 4, 10:55",title:"jsmith submits credentials to fake portal",sev:"critical",mitre:"T1056.003"},
+                {time:"Mar 5, 02:14",title:"RDP brute-force from Tor \u2192 success",sev:"critical",mitre:"T1110.001"},
+                {time:"Mar 6, 08:47",title:"Impossible travel: VPN from Moscow",sev:"critical",mitre:"T1078"},
+                {time:"Mar 7, 01:15",title:"Lateral movement via SMB + SSH",sev:"critical",mitre:"T1021.002"},
+                {time:"Mar 7, 01:22",title:"Encoded PowerShell execution",sev:"high",mitre:"T1059.001"},
+                {time:"Mar 8, 02:00",title:"Persistence via scheduled task",sev:"high",mitre:"T1053.005"},
+                {time:"Mar 8\u20139, 22:00",title:"Large file uploads (45MB + 62MB)",sev:"critical",mitre:"T1567.002"},
+                {time:"Mar 10, 03:00",title:"Shadow copy deletion + log clearing",sev:"critical",mitre:"T1070.001"},
+              ]})
+            ),
+            React.createElement("div",null,
+              React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16,marginBottom:16}},
+                React.createElement("h3",{style:{margin:"0 0 12px",fontSize:14,fontWeight:700,color:"#ff4444"}},"Indicators of Compromise"),
+                [{type:"Domain",val:"merid1anfg.com",ctx:"Typosquatted domain"},{type:"IP",val:"185.220.101.42",ctx:"Tor exit node"},{type:"IP",val:"91.234.56.78",ctx:"VPN from Moscow"},{type:"IP",val:"198.51.100.50",ctx:"Exfil destination"},{type:"Email",val:"hr-updates@merid1anfg.com",ctx:"Phishing sender"},{type:"File",val:"C:\\temp\\update.ps1",ctx:"Persistence script"},{type:"Account",val:"jsmith",ctx:"Compromised user"}].map((ioc,i)=>
+                  React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:i<6?"1px solid #282828":"none",fontSize:12}},
+                    React.createElement("span",{style:{padding:"2px 6px",borderRadius:3,fontSize:10,background:"#ff444422",color:"#ff8c00",fontWeight:600,width:55,textAlign:"center",flexShrink:0}},ioc.type),
+                    React.createElement("span",{style:{fontFamily:"'JetBrains Mono',monospace",flex:1}},ioc.val),
+                    React.createElement("span",{style:{color:"#666",fontSize:11}},ioc.ctx)
+                  )
+                )
+              ),
+              React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
+                React.createElement("h3",{style:{margin:"0 0 12px",fontSize:14,fontWeight:700,color:"#6bbd5b"}},"Affected Systems"),
+                [{host:"WS-FIN-012",ip:"10.0.0.105",role:"Primary compromise",sev:"critical"},{host:"WS-HR-003",ip:"10.0.0.110",role:"Lateral movement",sev:"high"},{host:"WS-IT-007",ip:"10.0.0.120",role:"Lateral movement",sev:"high"},{host:"linux-web-01",ip:"10.0.0.30",role:"SSH access",sev:"high"},{host:"DC-01",ip:"10.0.0.10",role:"RDP target",sev:"critical"}].map((s,i)=>
+                  React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:i<4?"1px solid #282828":"none"}},
+                    I.monitor(SEV[s.sev],14),
+                    React.createElement("div",{style:{flex:1}},
+                      React.createElement("div",{style:{fontSize:12,fontWeight:700}},s.host," ",React.createElement("span",{style:{color:"#666",fontWeight:400}},"(",s.ip,")")),
+                      React.createElement("div",{style:{fontSize:11,color:"#888"}},s.role)
+                    ),
+                    React.createElement("span",{style:{width:8,height:8,borderRadius:4,background:SEV[s.sev]}})
+                  )
+                )
+              )
+            )
+          )
+        ),
+
+        /* ═══ MITRE ═══ */
+        activeTab==="mitre"&&React.createElement("div",null,
+          React.createElement("h2",{style:{margin:"0 0 16px",fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}},I.shield("#ff4444",16)," MITRE ATT&CK Mapping"),
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}},
+            [
+              {tactic:"Initial Access",techs:[{id:"T1566.002",name:"Spearphishing Link",ev:"Phishing from merid1anfg.com"},{id:"T1078",name:"Valid Accounts",ev:"Harvested creds via RDP + VPN"}],color:"#ff4444"},
+              {tactic:"Execution",techs:[{id:"T1059.001",name:"PowerShell",ev:"Encoded: Invoke-WebRequest"}],color:"#ff8c00"},
+              {tactic:"Persistence",techs:[{id:"T1053.005",name:"Scheduled Task",ev:"Fake WindowsUpdate task"}],color:"#ffd700"},
+              {tactic:"Credential Access",techs:[{id:"T1110.001",name:"Password Guessing",ev:"RDP brute-force from Tor"},{id:"T1056.003",name:"Web Portal Capture",ev:"Fake benefits portal"}],color:"#e040fb"},
+              {tactic:"Lateral Movement",techs:[{id:"T1021.002",name:"SMB Admin Shares",ev:"C$ + ADMIN$ access"}],color:"#4fc3f7"},
+              {tactic:"Exfiltration",techs:[{id:"T1567.002",name:"Exfil to Cloud",ev:"transfer.sh + pastebin"}],color:"#6bbd5b"},
+              {tactic:"Defense Evasion",techs:[{id:"T1070.001",name:"Clear Event Logs",ev:"vssadmin + wevtutil"}],color:"#78909c"},
+              {tactic:"Collection",techs:[{id:"T1005",name:"Data from Local System",ev:"HR/Finance share data"}],color:"#ce93d8"},
+            ].map((t,i) => React.createElement("div",{key:i,style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,overflow:"hidden"}},
+              React.createElement("div",{style:{background:t.color+"22",borderBottom:`2px solid ${t.color}`,padding:"10px 14px"}},
+                React.createElement("div",{style:{fontSize:12,fontWeight:800,color:t.color,textTransform:"uppercase",letterSpacing:"0.5px"}},t.tactic)
+              ),
+              React.createElement("div",{style:{padding:12}},
+                t.techs.map((tech,j) => React.createElement("div",{key:j,style:{marginBottom:j<t.techs.length-1?10:0}},
+                  React.createElement("div",{style:{fontSize:11,fontWeight:700}},tech.id),
+                  React.createElement("div",{style:{fontSize:11,color:"#aaa"}},tech.name),
+                  React.createElement("div",{style:{fontSize:10,color:"#666",marginTop:2,fontStyle:"italic"}},tech.ev)
+                ))
+              )
+            ))
+          )
+        )
+      )
+    )
+  );
+}
+
+ReactDOM.render(React.createElement(App), document.getElementById("root"));
+</script>
+</body>
+</html>
