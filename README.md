@@ -1,80 +1,89 @@
-# Meridian SOC — SIEM Simulation Dashboard
+# 📊 Meridian SOC — SIEM Dashboard
 
-A fully interactive, browser-based SOC (Security Operations Center) simulation dashboard that mimics Splunk's interface. Built for cybersecurity training — no Splunk installation required.
+A modern, interactive **Security Operations Center (SOC) dashboard** built with **React + D3**, designed to simulate real-world SIEM monitoring, threat detection, and incident response workflows.
 
-## Features
 
-- **Overview Dashboard** — Real-time stats, login activity charts, severity donut, top attacking IPs
-- **Alert Queue** — 8 pre-populated alerts with triage workflow (Investigating / Escalated / Closed)
-- **Event Log** — 65+ realistic log entries with Splunk-style search and filtering
-- **Investigation Workspace** — Full attack timeline, IOCs, and affected systems map
-- **MITRE ATT&CK Mapping** — Visual technique mapping across 8 tactics
+## 🚀 Overview
 
-## 🚀 Deploy to GitHub Pages (Step-by-Step)
+This project is a **client-side SOC dashboard** that visualizes:
 
-### Step 1: Create a GitHub Repository
+- Security logs & event timelines  
+- Active alerts and incident tracking  
+- MITRE ATT&CK mapping  
+- Threat detection patterns  
+- Incident response workflows  
 
-1. Go to [github.com/new](https://github.com/new)
-2. Name it something like `soc-dashboard`
-3. Set it to **Public**
-4. Check **"Add a README file"**
-5. Click **Create repository**
+Perfect for:
+- Cybersecurity portfolios  
+- SOC analyst demonstrations  
+- Training simulations  
 
-### Step 2: Upload the File
 
-1. In your new repo, click **"Add file"** → **"Upload files"**
-2. Drag and drop the `index.html` file (downloaded from this conversation)
-3. Write a commit message like `Add SOC dashboard`
-4. Click **"Commit changes"**
+## ⚙️ Features
 
-### Step 3: Enable GitHub Pages
+### 🔍 Log Analysis
+- Realistic log dataset (logins, web activity, email, processes)
+- Malicious vs normal event detection
+- Filtering and exploration
 
-1. Go to your repo's **Settings** tab
-2. In the left sidebar, click **Pages**
-3. Under **"Source"**, select **"Deploy from a branch"**
-4. Under **"Branch"**, select **main** and **/ (root)**
-5. Click **Save**
+### 🚨 Alert Management
+- Simulated real-world alerts:
+  - Phishing
+  - Brute force attacks
+  - Lateral movement
+  - Data exfiltration
+- Severity levels (Critical, High, Medium, Low)
+- MITRE ATT&CK technique mapping
+- Built-in remediation steps
 
-### Step 4: Access Your Dashboard
+### 🧠 MITRE ATT&CK Matrix
+- Interactive heatmap
+- Technique-level breakdown
+- Detection + response guidance
 
-After 1–2 minutes, your dashboard will be live at:
+### 📈 Visualizations
+- Timeline charts
+- Donut + bar charts (D3.js)
+- Attack progression tracking
 
-```
-https://YOUR-USERNAME.github.io/soc-dashboard/
-```
+### 🛡️ Incident Response
+- Containment checklist
+- Simulated IR workflow
 
-Replace `YOUR-USERNAME` with your actual GitHub username.
 
-You can find the exact URL on the **Settings → Pages** screen after deployment completes.
+## 🛠️ Tech Stack
+
+- **React (CDN)**  
+- **D3.js**  
+- **Babel (in-browser JSX)**  
+- **HTML / CSS**
+
+
 
 ---
 
-## 🖥️ Alternative: Run Locally
+## 🎯 Use Cases
 
-Just open `index.html` in any modern browser. No server needed.
+- SOC Analyst Portfolio Project  
+- Blue Team Simulation  
+- SIEM Dashboard Prototype  
+- Cybersecurity Training Tool  
 
-```bash
-# Or use a simple server
-python3 -m http.server 8080
-# Then open http://localhost:8080
-```
+---
 
-## 📋 What's Inside
+## ⚠️ Disclaimer
 
-The dashboard simulates a 7-day attack campaign ("Operation Credential Harvest") against a fictional company, Meridian Financial Group. The dataset includes:
+This project uses **simulated data only** and is intended for educational and demonstration purposes.
 
-| Attack Phase | Day | Technique |
-|---|---|---|
-| Phishing delivery | Day 1 | Typosquatted domain (merid1anfg.com) |
-| Credential harvesting | Day 1 | Fake benefits portal |
-| Brute-force RDP | Day 2 | From Tor exit node |
-| Impossible travel | Day 3 | Chicago → Moscow in 32 min |
-| Lateral movement | Day 4 | SMB admin shares + SSH |
-| PowerShell execution | Day 4 | Encoded Invoke-WebRequest |
-| Persistence | Day 5 | Fake scheduled task |
-| Data exfiltration | Day 5–6 | transfer.sh uploads (45MB + 62MB) |
-| Anti-forensics | Day 7 | Shadow copy deletion + log clearing |
+---
 
-## License
+## 👤 Author
 
-MIT — Free to use for training and education.
+**Ayeni oluwadamilola Timothy**  
+Cybersecurity | SIEM | Threat Detection | Data Visualization  
+
+---
+
+## ⭐️ Support
+
+If you found this useful, consider giving the repo a ⭐️
