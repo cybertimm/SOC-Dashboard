@@ -8,19 +8,31 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:#111; color:#e0e0e0; font-family:'DM Sans',sans-serif; overflow-x:hidden; }
-  ::-webkit-scrollbar { width:6px; }
+  body { background:#0f0f0f; color:#e0e0e0; font-family:'DM Sans',sans-serif; overflow-x:hidden; }
+  ::-webkit-scrollbar { width:5px; height:5px; }
   ::-webkit-scrollbar-track { background:#111; }
-  ::-webkit-scrollbar-thumb { background:#333; border-radius:3px; }
-  ::-webkit-scrollbar-thumb:hover { background:#555; }
+  ::-webkit-scrollbar-thumb { background:#2a2a2a; border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:#444; }
   input::placeholder { color:#555; }
-  select { -webkit-appearance:none; }
-  button { font-family:inherit; }
+  select { -webkit-appearance:none; background:#1a1a1a; border:1px solid #333; color:#e0e0e0; padding:4px 8px; border-radius:4px; font-size:12px; }
+  button { font-family:inherit; cursor:pointer; }
   table { font-family:'JetBrains Mono',monospace; }
+  textarea { background:#161616; border:1px solid #2a2a2a; color:#e0e0e0; border-radius:4px; padding:10px; font-family:'DM Sans',sans-serif; font-size:12px; resize:vertical; outline:none; width:100%; }
+  textarea:focus { border-color:#6bbd5b44; }
+  input[type="checkbox"] { accent-color:#6bbd5b; width:13px; height:13px; cursor:pointer; }
+  @keyframes fadein { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
+  .slide-in { animation:fadein 0.18s ease; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .live { animation:blink 1.8s infinite; }
+  .tech-cell { transition:all 0.12s; }
+  .tech-cell:hover { filter:brightness(1.3); transform:scale(1.02); }
+  .ev-row { transition:background 0.1s; }
+  .ev-row:hover { background:#1c2a1c !important; }
+  .al-row { transition:all 0.1s; }
+  .al-row:hover { filter:brightness(1.1); }
 </style>
 </head>
 <body>
@@ -28,7 +40,12 @@
 <script type="text/babel">
 const { useState, useMemo, useEffect, useRef } = React;
 
-/* ═══════════════════════ DATA ═══════════════════════ */
+/* ══════════ CONSTANTS ══════════ */
+const SEV = {critical:"#ff4444",high:"#ff8c00",medium:"#ffd700",low:"#4fc3f7",info:"#666"};
+const STCOL = {detected:"#6bbd5b",suspected:"#ffd700",not_observed:"#333"};
+const STLBL = {detected:"DETECTED",suspected:"SUSPECTED",not_observed:"NOT SEEN"};
+
+/* ══════════ LOG DATA ══════════ */
 const LOGS = [
   {t:"2024-03-04 08:01:23",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
   {t:"2024-03-04 08:03:45",src:"10.0.0.105",dst:"10.0.0.50",user:"jsmith",host:"WS-FIN-012",type:"email_recv",status:"success",detail:"From: vendor@acme-supply.com Subject: Invoice Q1",mal:false},
@@ -39,18 +56,11 @@ const LOGS = [
   {t:"2024-03-04 09:12:55",src:"10.0.0.115",dst:"10.0.0.50",user:"mchen",host:"WS-MGR-001",type:"email_send",status:"success",detail:"To: team@meridianfg.com Subject: Q1 Review Meeting",mal:false},
   {t:"2024-03-04 09:30:22",src:"10.0.0.130",dst:"172.217.14.110",user:"tkumar",host:"WS-DEV-002",type:"web_browse",status:"success",detail:"GET https://stackoverflow.com/questions/python",mal:false},
   {t:"2024-03-04 09:45:00",src:"10.0.0.140",dst:"10.0.0.10",user:"lrodriguez",host:"WS-OPS-015",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-04 10:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Screen unlock",mal:false},
-  {t:"2024-03-04 10:15:00",src:"10.0.0.135",dst:"10.0.0.50",user:"dpark",host:"WS-SALES-009",type:"email_recv",status:"success",detail:"From: client@bigcorp.com Subject: Contract renewal",mal:false},
-  {t:"2024-03-04 10:30:00",src:"10.0.0.110",dst:"10.0.0.50",user:"agarcia",host:"WS-HR-003",type:"email_send",status:"success",detail:"To: allstaff@meridianfg.com Subject: Office closure Friday",mal:false},
   {t:"2024-03-04 10:42:18",src:"198.51.100.25",dst:"10.0.0.50",user:"external",host:"MAIL-GW-01",type:"email_recv",status:"success",detail:"From: hr-updates@merid1anfg.com Subject: Urgent: Benefits Enrollment Update To: jsmith@meridianfg.com",mal:true,attack:"phishing"},
   {t:"2024-03-04 10:42:19",src:"198.51.100.25",dst:"10.0.0.50",user:"external",host:"MAIL-GW-01",type:"email_recv",status:"success",detail:"From: hr-updates@merid1anfg.com Subject: Urgent: Benefits Enrollment Update To: agarcia@meridianfg.com",mal:true,attack:"phishing"},
   {t:"2024-03-04 10:42:20",src:"198.51.100.25",dst:"10.0.0.50",user:"external",host:"MAIL-GW-01",type:"email_recv",status:"success",detail:"From: hr-updates@merid1anfg.com Subject: Urgent: Benefits Enrollment Update To: lrodriguez@meridianfg.com",mal:true,attack:"phishing"},
   {t:"2024-03-04 10:55:33",src:"10.0.0.105",dst:"198.51.100.30",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"GET https://merid1anfg-benefits.com/login.html",mal:true,attack:"credential_harvest"},
   {t:"2024-03-04 10:56:12",src:"10.0.0.105",dst:"198.51.100.30",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"POST https://merid1anfg-benefits.com/submit.php credentials_submitted",mal:true,attack:"credential_harvest"},
-  {t:"2024-03-04 11:00:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Screen unlock",mal:false},
-  {t:"2024-03-04 12:05:00",src:"10.0.0.140",dst:"10.0.0.10",user:"lrodriguez",host:"WS-OPS-015",type:"login",status:"success",detail:"Screen unlock",mal:false},
-  {t:"2024-03-04 13:30:00",src:"10.0.0.105",dst:"10.0.0.50",user:"jsmith",host:"WS-FIN-012",type:"email_send",status:"success",detail:"To: manager@meridianfg.com Subject: Expense report Q1",mal:false},
-  {t:"2024-03-04 14:00:00",src:"10.0.0.110",dst:"172.217.14.110",user:"agarcia",host:"WS-HR-003",type:"web_browse",status:"success",detail:"GET https://workday.com/meridianfg/dashboard",mal:false},
   {t:"2024-03-04 15:30:00",src:"10.0.0.130",dst:"10.0.0.10",user:"tkumar",host:"WS-DEV-002",type:"login",status:"failure",detail:"Bad password",mal:false},
   {t:"2024-03-04 15:30:15",src:"10.0.0.130",dst:"10.0.0.10",user:"tkumar",host:"WS-DEV-002",type:"login",status:"success",detail:"Interactive logon",mal:false},
   {t:"2024-03-04 17:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Logoff",mal:false},
@@ -58,461 +68,1031 @@ const LOGS = [
   {t:"2024-03-05 02:14:02",src:"185.220.101.42",dst:"10.0.0.10",user:"jsmith",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
   {t:"2024-03-05 02:14:03",src:"185.220.101.42",dst:"10.0.0.10",user:"jsmith",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
   {t:"2024-03-05 02:14:05",src:"185.220.101.42",dst:"10.0.0.10",user:"jsmith",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
-  {t:"2024-03-05 02:14:08",src:"185.220.101.42",dst:"10.0.0.10",user:"jsmith",host:"DC-01",type:"login",status:"success",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 02:14:08",src:"185.220.101.42",dst:"10.0.0.10",user:"jsmith",host:"DC-01",type:"login",status:"success",detail:"Logon Type 10 - RDP SUCCESS",mal:true,attack:"brute_force"},
   {t:"2024-03-05 03:30:00",src:"185.220.101.42",dst:"10.0.0.10",user:"admin",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
-  {t:"2024-03-05 03:30:02",src:"185.220.101.42",dst:"10.0.0.10",user:"admin",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
-  {t:"2024-03-05 03:30:04",src:"185.220.101.42",dst:"10.0.0.10",user:"administrator",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
+  {t:"2024-03-05 03:30:02",src:"185.220.101.42",dst:"10.0.0.10",user:"administrator",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
   {t:"2024-03-05 03:30:06",src:"185.220.101.42",dst:"10.0.0.10",user:"svc_backup",host:"DC-01",type:"login",status:"failure",detail:"Logon Type 10 - RDP",mal:true,attack:"brute_force"},
-  {t:"2024-03-05 08:05:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-05 08:10:00",src:"10.0.0.110",dst:"10.0.0.10",user:"agarcia",host:"WS-HR-003",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-05 08:15:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-05 09:00:00",src:"10.0.0.135",dst:"10.0.0.10",user:"dpark",host:"WS-SALES-009",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-05 10:00:00",src:"10.0.0.140",dst:"10.0.0.50",user:"lrodriguez",host:"WS-OPS-015",type:"email_recv",status:"success",detail:"From: support@vendor.com Subject: Ticket #4521 resolved",mal:false},
-  {t:"2024-03-05 14:00:00",src:"10.0.0.105",dst:"10.0.0.50",user:"jsmith",host:"WS-FIN-012",type:"email_send",status:"success",detail:"To: vendor@acme-supply.com Subject: Payment confirmation",mal:false},
   {t:"2024-03-06 08:15:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon - Chicago office",mal:false},
-  {t:"2024-03-06 08:20:00",src:"10.0.0.110",dst:"10.0.0.10",user:"agarcia",host:"WS-HR-003",type:"login",status:"success",detail:"Interactive logon",mal:false},
   {t:"2024-03-06 08:47:22",src:"91.234.56.78",dst:"10.0.0.10",user:"jsmith",host:"VPN-GW-01",type:"vpn_login",status:"success",detail:"VPN connection from Moscow, RU",mal:true,attack:"impossible_travel"},
-  {t:"2024-03-06 09:00:00",src:"10.0.0.120",dst:"10.0.0.30",user:"bwilliams",host:"WS-IT-007",type:"ssh_login",status:"success",detail:"SSH to linux-web-01 - routine maintenance",mal:false},
-  {t:"2024-03-06 10:30:00",src:"10.0.0.135",dst:"172.217.14.110",user:"dpark",host:"WS-SALES-009",type:"web_browse",status:"success",detail:"GET https://salesforce.com/meridianfg",mal:false},
-  {t:"2024-03-06 12:00:00",src:"10.0.0.140",dst:"10.0.0.10",user:"lrodriguez",host:"WS-OPS-015",type:"login",status:"success",detail:"Screen unlock",mal:false},
   {t:"2024-03-07 01:15:00",src:"10.0.0.105",dst:"10.0.0.110",user:"jsmith",host:"WS-FIN-012",type:"smb_access",status:"success",detail:"Access \\\\WS-HR-003\\C$",mal:true,attack:"lateral_movement"},
   {t:"2024-03-07 01:17:33",src:"10.0.0.105",dst:"10.0.0.120",user:"jsmith",host:"WS-FIN-012",type:"smb_access",status:"success",detail:"Access \\\\WS-IT-007\\ADMIN$",mal:true,attack:"lateral_movement"},
-  {t:"2024-03-07 01:20:00",src:"10.0.0.105",dst:"10.0.0.30",user:"jsmith",host:"WS-FIN-012",type:"ssh_login",status:"success",detail:"SSH to linux-web-01",mal:true,attack:"lateral_movement"},
+  {t:"2024-03-07 01:20:00",src:"10.0.0.105",dst:"10.0.0.30",user:"jsmith",host:"WS-FIN-012",type:"ssh_login",status:"success",detail:"SSH to linux-web-01 — off-hours",mal:true,attack:"lateral_movement"},
   {t:"2024-03-07 01:22:45",src:"10.0.0.105",dst:"N/A",user:"jsmith",host:"WS-FIN-012",type:"process_create",status:"success",detail:"powershell.exe -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0AA==",mal:true,attack:"powershell"},
-  {t:"2024-03-07 01:25:00",src:"10.0.0.105",dst:"198.51.100.50",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"POST https://pastebin.com/api/api_post.php",mal:true,attack:"exfiltration"},
-  {t:"2024-03-07 08:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-07 08:10:00",src:"10.0.0.110",dst:"10.0.0.10",user:"agarcia",host:"WS-HR-003",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-07 09:00:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-07 11:00:00",src:"10.0.0.130",dst:"172.217.14.110",user:"tkumar",host:"WS-DEV-002",type:"web_browse",status:"success",detail:"GET https://github.com/meridianfg/internal-tools",mal:false},
+  {t:"2024-03-07 01:25:00",src:"10.0.0.105",dst:"198.51.100.50",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"POST https://pastebin.com/api/api_post.php 4KB",mal:true,attack:"exfiltration"},
   {t:"2024-03-08 02:00:00",src:"10.0.0.105",dst:"N/A",user:"SYSTEM",host:"WS-FIN-012",type:"scheduled_task",status:"success",detail:"Task: WindowsUpdate created by jsmith cmd: powershell.exe -ep bypass -f C:\\temp\\update.ps1",mal:true,attack:"persistence"},
-  {t:"2024-03-08 08:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-08 08:30:00",src:"10.0.0.110",dst:"10.0.0.50",user:"agarcia",host:"WS-HR-003",type:"email_send",status:"success",detail:"To: recruiting@meridianfg.com Subject: New hire onboarding checklist",mal:false},
-  {t:"2024-03-08 10:00:00",src:"10.0.0.135",dst:"10.0.0.50",user:"dpark",host:"WS-SALES-009",type:"email_recv",status:"success",detail:"From: prospect@techstart.io Subject: Demo request",mal:false},
+  {t:"2024-03-08 02:05:00",src:"10.0.0.105",dst:"N/A",user:"jsmith",host:"WS-FIN-012",type:"registry_write",status:"success",detail:"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run: update = C:\\temp\\update.ps1",mal:true,attack:"persistence"},
   {t:"2024-03-08 22:00:00",src:"10.0.0.105",dst:"198.51.100.50",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"POST https://transfer.sh/upload size:45MB",mal:true,attack:"exfiltration"},
-  {t:"2024-03-09 08:00:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-09 09:00:00",src:"10.0.0.130",dst:"10.0.0.10",user:"tkumar",host:"WS-DEV-002",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-09 10:00:00",src:"10.0.0.140",dst:"10.0.0.10",user:"lrodriguez",host:"WS-OPS-015",type:"login",status:"success",detail:"Interactive logon",mal:false},
   {t:"2024-03-09 22:00:00",src:"10.0.0.105",dst:"198.51.100.50",user:"jsmith",host:"WS-FIN-012",type:"web_browse",status:"success",detail:"POST https://transfer.sh/upload size:62MB",mal:true,attack:"exfiltration"},
   {t:"2024-03-10 03:00:00",src:"10.0.0.105",dst:"N/A",user:"jsmith",host:"WS-FIN-012",type:"process_create",status:"success",detail:"cmd.exe /c vssadmin delete shadows /all /quiet",mal:true,attack:"defense_evasion"},
   {t:"2024-03-10 03:05:00",src:"10.0.0.105",dst:"N/A",user:"jsmith",host:"WS-FIN-012",type:"process_create",status:"success",detail:"wevtutil.exe cl Security",mal:true,attack:"defense_evasion"},
-  {t:"2024-03-10 08:00:00",src:"10.0.0.110",dst:"10.0.0.10",user:"agarcia",host:"WS-HR-003",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-10 08:30:00",src:"10.0.0.120",dst:"10.0.0.10",user:"bwilliams",host:"WS-IT-007",type:"login",status:"success",detail:"Interactive logon",mal:false},
-  {t:"2024-03-10 09:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-10 03:07:00",src:"10.0.0.105",dst:"N/A",user:"jsmith",host:"WS-FIN-012",type:"process_create",status:"success",detail:"wevtutil.exe cl System",mal:true,attack:"defense_evasion"},
+  {t:"2024-03-10 08:00:00",src:"10.0.0.105",dst:"10.0.0.10",user:"jsmith",host:"WS-FIN-012",type:"login",status:"success",detail:"Interactive logon",mal:false},
+  {t:"2024-03-10 08:30:00",src:"10.0.0.110",dst:"10.0.0.10",user:"agarcia",host:"WS-HR-003",type:"login",status:"success",detail:"Interactive logon",mal:false},
 ];
 
+/* ══════════ ALERT DATA ══════════ */
 const ALERTS = [
-  {id:"ALT-001",sev:"critical",title:"Brute Force RDP \u2014 Multiple Failed Logins",time:"2024-03-05 02:14:01",src:"185.220.101.42",user:"jsmith",status:"new",mitre:"T1110.001",desc:"8 failed RDP logins followed by 1 success from Tor exit node 185.220.101.42 targeting user jsmith on DC-01. Logon Type 10 (Remote Interactive). Time: 02:14 AM (off-hours)."},
-  {id:"ALT-002",sev:"high",title:"Phishing \u2014 Typosquatted Domain Detected",time:"2024-03-04 10:42:18",src:"198.51.100.25",user:"jsmith, agarcia, lrodriguez",status:"new",mitre:"T1566.002",desc:"3 emails received from hr-updates@merid1anfg.com (note: '1' replacing 'i'). Subject: 'Urgent: Benefits Enrollment Update'. merid1anfg.com is NOT meridianfg.com."},
-  {id:"ALT-003",sev:"critical",title:"Impossible Travel \u2014 Simultaneous Logins",time:"2024-03-06 08:47:22",src:"91.234.56.78",user:"jsmith",status:"new",mitre:"T1078",desc:"jsmith logged in from Chicago (10.0.0.105) at 08:15 and Moscow, Russia (91.234.56.78) via VPN at 08:47. Gap: 32 minutes. Min travel: ~12 hours."},
-  {id:"ALT-004",sev:"critical",title:"Lateral Movement \u2014 Admin Share Access",time:"2024-03-07 01:15:00",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1021.002",desc:"jsmith accessed C$ on WS-HR-003, ADMIN$ on WS-IT-007, and SSH'd to linux-web-01 within 5 min at 01:15 AM. Finance users should never access admin shares."},
-  {id:"ALT-005",sev:"high",title:"Suspicious PowerShell \u2014 Encoded Command",time:"2024-03-07 01:22:45",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1059.001",desc:"Encoded PowerShell: powershell.exe -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0AA== Decoded: Invoke-WebRequest. Executed at 01:22 AM."},
-  {id:"ALT-006",sev:"high",title:"Persistence \u2014 Suspicious Scheduled Task",time:"2024-03-08 02:00:00",src:"10.0.0.105",user:"SYSTEM",status:"new",mitre:"T1053.005",desc:"Scheduled task 'WindowsUpdate' created by jsmith running: powershell.exe -ep bypass -f C:\\temp\\update.ps1. Legitimate Windows Update does not use this pattern."},
-  {id:"ALT-007",sev:"critical",title:"Data Exfiltration \u2014 Large Upload to transfer.sh",time:"2024-03-08 22:00:00",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1567.002",desc:"POST to transfer.sh with 45MB upload from WS-FIN-012 at 22:00. Normal: <5MB/day. Second upload: 62MB the following night."},
-  {id:"ALT-008",sev:"critical",title:"Defense Evasion \u2014 Log Clearing + Shadow Copy Deletion",time:"2024-03-10 03:00:00",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1070.001",desc:"Sequential: vssadmin delete shadows /all /quiet then wevtutil cl Security at 03:00 AM. Destroys forensic evidence and backup recovery."},
+  {id:"ALT-001",sev:"critical",title:"Brute Force RDP — Multiple Failed Logins",time:"2024-03-05 02:14:01",src:"185.220.101.42",user:"jsmith",status:"new",mitre:"T1110.001",
+   desc:"8 failed RDP logins followed by 1 success from Tor exit node 185.220.101.42 targeting jsmith on DC-01. Logon Type 10 at 02:14 AM.",
+   fix:["Block 185.220.101.42 and all Tor exit nodes at perimeter firewall","Enable Network Level Authentication (NLA) on all RDP services","Implement account lockout policy: 5 failures → 30-min lockout","Restrict RDP access to VPN + jump host only","Enable MFA on all remote access services"]},
+  {id:"ALT-002",sev:"high",title:"Phishing — Typosquatted Domain Detected",time:"2024-03-04 10:42:18",src:"198.51.100.25",user:"jsmith, agarcia, lrodriguez",status:"new",mitre:"T1566.002",
+   desc:"3 emails from hr-updates@merid1anfg.com (typosquatted: '1' replaces 'i'). Subject: 'Urgent: Benefits Enrollment Update'. Domain merid1anfg.com ≠ meridianfg.com.",
+   fix:["Block merid1anfg.com and merid1anfg-benefits.com at email gateway and DNS/proxy","Quarantine emails received by jsmith, agarcia, lrodriguez","Notify all 3 recipients — determine who clicked the link","Submit domain to abuse registrar and threat intel feeds","Review SPF/DKIM policies to prevent domain spoofing"]},
+  {id:"ALT-003",sev:"critical",title:"Impossible Travel — Simultaneous Logins",time:"2024-03-06 08:47:22",src:"91.234.56.78",user:"jsmith",status:"new",mitre:"T1078",
+   desc:"jsmith logged in from Chicago (10.0.0.105) at 08:15 and Moscow, Russia (91.234.56.78) via VPN at 08:47. Time gap: 32 min. Min travel: ~12 hours.",
+   fix:["Force immediate password reset for jsmith","Revoke all active VPN and RDP sessions for jsmith","Enable geo-blocking for VPN — restrict to known countries","Implement impossible travel detection in SIEM","Require re-authentication from new geolocations via MFA challenge"]},
+  {id:"ALT-004",sev:"critical",title:"Lateral Movement — Admin Share Access",time:"2024-03-07 01:15:00",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1021.002",
+   desc:"jsmith accessed C$ on WS-HR-003, ADMIN$ on WS-IT-007, and SSH'd to linux-web-01 within 5 minutes at 01:15 AM. Finance users should never access admin shares.",
+   fix:["Isolate WS-FIN-012 (10.0.0.105) from the network immediately","Disable admin shares via GPO: AutoShareWks=0, AutoShareServer=0","Implement network segmentation — finance VLAN cannot reach HR/IT","Audit all systems jsmith touched for malicious artifacts","Deploy host-based firewall rules to block workstation-to-workstation SMB"]},
+  {id:"ALT-005",sev:"high",title:"Suspicious PowerShell — Encoded Command",time:"2024-03-07 01:22:45",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1059.001",
+   desc:"Encoded PowerShell: -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0AA== → Invoke-WebRequest. Executed at 01:22 AM on WS-FIN-012.",
+   fix:["Enable PowerShell Script Block Logging via GPO immediately","Enable AMSI (Antimalware Scan Interface) for PowerShell","Collect and analyze the decoded payload — identify download destination","Implement PowerShell Constrained Language Mode for standard users","Block -EncodedCommand and -enc flags via AppLocker/WDAC"]},
+  {id:"ALT-006",sev:"high",title:"Persistence — Suspicious Scheduled Task + Registry Run Key",time:"2024-03-08 02:00:00",src:"10.0.0.105",user:"SYSTEM",status:"new",mitre:"T1053.005",
+   desc:"Scheduled task 'WindowsUpdate' created by jsmith: powershell.exe -ep bypass -f C:\\temp\\update.ps1. Also: HKCU Run key set to same script. Dual persistence mechanism.",
+   fix:["Delete malicious scheduled task 'WindowsUpdate' on WS-FIN-012","Remove HKCU\\...\\Run registry entry for update.ps1","Retrieve and analyze C:\\temp\\update.ps1 before remediation","Search for identical tasks/keys across all endpoints","Monitor task creation events (Event ID 4698) with SIEM alert"]},
+  {id:"ALT-007",sev:"critical",title:"Data Exfiltration — Large Uploads to transfer.sh",time:"2024-03-08 22:00:00",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1567.002",
+   desc:"POST to transfer.sh: 45MB (Mar 8 22:00) and 62MB (Mar 9 22:00) from WS-FIN-012. Normal baseline: <5MB/day. Total estimated exfiltrated: 107MB+.",
+   fix:["Block transfer.sh, pastebin.com, and file-sharing services at web proxy","Enable SSL/TLS inspection on web proxy to detect HTTPS exfiltration","Implement DLP policy: alert on uploads >10MB to uncategorized domains","Review proxy logs for other exfil destinations over the past 30 days","Notify legal/compliance — potential data breach notification required"]},
+  {id:"ALT-008",sev:"critical",title:"Defense Evasion — Log Clearing + Shadow Copy Deletion",time:"2024-03-10 03:00:00",src:"10.0.0.105",user:"jsmith",status:"new",mitre:"T1070.001",
+   desc:"Sequential execution: vssadmin delete shadows /all /quiet → wevtutil cl Security → wevtutil cl System at 03:00–03:07 AM. Destroys forensic evidence and recovery paths.",
+   fix:["Forward all security logs to SIEM in real-time — logs preserved off-host","Enable tamper-proof logging (Windows Event Forwarding) immediately","Alert on vssadmin and wevtutil process execution via Sysmon","Restore WS-FIN-012 from verified clean backup image","Escalate to Tier 3 / IR team — pattern consistent with pre-ransomware staging"]},
 ];
 
-const SEV = {critical:"#ff4444",high:"#ff8c00",medium:"#ffd700",low:"#4fc3f7",info:"#8e8e93"};
-const MITRE = {"T1566.002":"Spearphishing Link","T1056.003":"Web Portal Capture","T1078":"Valid Accounts","T1110.001":"Password Guessing","T1021.002":"SMB Admin Shares","T1059.001":"PowerShell","T1053.005":"Scheduled Task","T1567.002":"Exfil to Cloud","T1070.001":"Clear Event Logs","T1005":"Data from Local System"};
+/* ══════════ MITRE ATT&CK MATRIX ══════════ */
+const MITRE_MATRIX = [
+  {id:"TA0001",tactic:"Initial Access",color:"#ff4444",techniques:[
+    {id:"T1566.002",name:"Spearphishing Link",status:"detected",sev:"high",
+     desc:"Phishing emails from typosquatted domain merid1anfg.com delivered to 3 employees.",
+     evidence:"Mar 4, 10:42 — 3 emails from hr-updates@merid1anfg.com to jsmith, agarcia, lrodriguez",
+     detect:"Email gateway logs; domain typosquat detection; SPF/DKIM failures; URL reputation scoring",
+     fix:"Block sender domain at mail gateway; quarantine messages; notify recipients; check link click telemetry"},
+    {id:"T1566.001",name:"Spearphishing Attachment",status:"not_observed",sev:"medium",
+     desc:"No attachment-based phishing observed in this incident.",
+     evidence:null,
+     detect:"Sandbox attachment detonation; file type blocking on email gateway; Office macro detection",
+     fix:"Ensure attachment sandboxing is active; block macros from external email; enable ATP policies"},
+    {id:"T1078",name:"Valid Accounts",status:"detected",sev:"critical",
+     desc:"Stolen jsmith credentials used for RDP from Tor exit node and VPN from Moscow.",
+     evidence:"Mar 5 02:14 RDP from 185.220.101.42 (Tor); Mar 6 08:47 VPN from 91.234.56.78 (Moscow)",
+     detect:"Impossible travel detection; geo-IP alerting; Tor exit node feed; off-hours login alert",
+     fix:"Force password reset; enable MFA on all remote access; revoke active sessions; audit privileged access"},
+    {id:"T1190",name:"Exploit Public-Facing App",status:"not_observed",sev:"high",
+     desc:"No exploitation of internet-facing services detected in this campaign.",
+     evidence:null,
+     detect:"WAF alerts; IDS signatures; vulnerability scan findings; anomalous server-side errors",
+     fix:"Patch all external-facing services; enable WAF; run external vulnerability assessment"},
+  ]},
+  {id:"TA0002",tactic:"Execution",color:"#ff6b35",techniques:[
+    {id:"T1059.001",name:"PowerShell",status:"detected",sev:"high",
+     desc:"Encoded PowerShell command decodes to Invoke-WebRequest, executed at 01:22 AM.",
+     evidence:"Mar 7, 01:22 — powershell.exe -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0AA==",
+     detect:"Script Block Logging; AMSI; encoded command flag detection; off-hours process creation alert",
+     fix:"Enable Script Block Logging via GPO; enforce AMSI; implement Constrained Language Mode"},
+    {id:"T1059.003",name:"Windows Command Shell",status:"detected",sev:"high",
+     desc:"cmd.exe used to execute vssadmin and wevtutil for evidence destruction.",
+     evidence:"Mar 10, 03:00 — cmd.exe /c vssadmin delete shadows /all /quiet",
+     detect:"Sysmon Event ID 1 (Process Create); command-line argument monitoring; EDR behavioral",
+     fix:"Alert on vssadmin and wevtutil executions; restrict via AppLocker; monitor cmd.exe children"},
+    {id:"T1204.002",name:"Malicious File",status:"suspected",sev:"medium",
+     desc:"jsmith likely executed C:\\temp\\update.ps1 delivered via the phishing link.",
+     evidence:"Mar 8, 02:00 — scheduled task references C:\\temp\\update.ps1 (non-standard path)",
+     detect:"File hash reputation; sandbox execution; EDR file creation telemetry; path anomaly detection",
+     fix:"Collect and analyze C:\\temp\\update.ps1 before wiping; submit to sandbox; check VirusTotal"},
+    {id:"T1569.002",name:"Service Execution",status:"not_observed",sev:"medium",
+     desc:"No service-based execution confirmed; possible vector via PS script.",
+     evidence:null,
+     detect:"Service creation (Event ID 4697); Sysmon Event ID 6; unexpected service binary paths",
+     fix:"Audit service list on affected hosts; review any new service registrations since Mar 4"},
+  ]},
+  {id:"TA0003",tactic:"Persistence",color:"#ffd700",techniques:[
+    {id:"T1053.005",name:"Scheduled Task",status:"detected",sev:"high",
+     desc:"Fake 'WindowsUpdate' scheduled task created to run PowerShell bypass script at reboot.",
+     evidence:"Mar 8, 02:00 — Task: WindowsUpdate; Cmd: powershell.exe -ep bypass -f C:\\temp\\update.ps1",
+     detect:"Event ID 4698 (task created); task registry key monitoring; off-hours task creation alert",
+     fix:"Delete malicious task; audit all tasks on WS-FIN-012; scan fleet for identical task name"},
+    {id:"T1547.001",name:"Registry Run Keys",status:"detected",sev:"high",
+     desc:"HKCU Run key set to execute update.ps1 — dual persistence alongside scheduled task.",
+     evidence:"Mar 8, 02:05 — HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run: update = C:\\temp\\update.ps1",
+     detect:"Registry modification (Sysmon Event ID 13); Autoruns baseline comparison; EDR persistence monitoring",
+     fix:"Remove registry Run key; run Autoruns on all affected hosts; compare against golden baseline"},
+    {id:"T1136.001",name:"Create Local Account",status:"not_observed",sev:"critical",
+     desc:"No new account creation detected; monitor as possible next-stage action.",
+     evidence:null,
+     detect:"Account creation (Event ID 4720); new user enumeration; net user / Get-LocalUser execution",
+     fix:"Audit local accounts on all affected systems; review domain account changes in Active Directory"},
+  ]},
+  {id:"TA0004",tactic:"Privilege Escalation",color:"#e040fb",techniques:[
+    {id:"T1078.002",name:"Domain Accounts",status:"detected",sev:"critical",
+     desc:"Domain account jsmith accessed ADMIN$ — implies admin-level access or misconfigured ACLs.",
+     evidence:"Mar 7, 01:17 — Access \\\\WS-IT-007\\ADMIN$ from WS-FIN-012 (jsmith)",
+     detect:"Admin share access monitoring; privileged access alerts; unusual account-to-share mappings",
+     fix:"Audit jsmith's group memberships; implement LAPS; restrict admin share access by GPO"},
+    {id:"T1134",name:"Access Token Manipulation",status:"suspected",sev:"high",
+     desc:"PowerShell script may have performed token manipulation to escalate privileges.",
+     evidence:"Admin share + encoded PS execution pattern suggests possible token impersonation",
+     detect:"LSASS access events; token duplication API calls; EDR behavioral anomalies",
+     fix:"Analyze PS script for impersonation APIs (ImpersonateLoggedOnUser, DuplicateToken)"},
+    {id:"T1055",name:"Process Injection",status:"not_observed",sev:"high",
+     desc:"No confirmed process injection; possible given PowerShell execution capability.",
+     evidence:null,
+     detect:"Sysmon Event ID 8 (CreateRemoteThread); AMSI telemetry; cross-process memory writes",
+     fix:"Enable kernel-level EDR for cross-process memory write detection"},
+  ]},
+  {id:"TA0005",tactic:"Defense Evasion",color:"#78909c",techniques:[
+    {id:"T1070.001",name:"Clear Windows Event Logs",status:"detected",sev:"critical",
+     desc:"Security and System event logs wiped using wevtutil to destroy forensic evidence.",
+     evidence:"Mar 10, 03:05 — wevtutil.exe cl Security; 03:07 — wevtutil.exe cl System",
+     detect:"Event ID 1102 (log cleared); SIEM gap detection; EDR process monitoring for wevtutil",
+     fix:"Forward logs to SIEM in real-time (off-host); enable tamper-proof log forwarding"},
+    {id:"T1070.004",name:"File Deletion / VSS",status:"detected",sev:"critical",
+     desc:"All VSS shadow copies deleted — eliminates backup-based recovery options.",
+     evidence:"Mar 10, 03:00 — vssadmin delete shadows /all /quiet",
+     detect:"VSS deletion alert (Sysmon); EDR monitoring for vssadmin; storage admin alerts",
+     fix:"Implement immutable/offline backups; restore golden image; audit backup integrity across fleet"},
+    {id:"T1027",name:"Obfuscated Files/Info",status:"detected",sev:"high",
+     desc:"PowerShell payload Base64-encoded to evade signature-based detection.",
+     evidence:"Mar 7, 01:22 — powershell.exe -enc [base64 blob] → Invoke-WebRequest",
+     detect:"Base64 in command line; Script Block Logging; AMSI scanning",
+     fix:"Enable Script Block Logging; deploy AMSI-capable AV; alert on -enc/-EncodedCommand flags"},
+    {id:"T1562.001",name:"Disable Security Tools",status:"suspected",sev:"high",
+     desc:"No EDR alerts prior to log clearing — possible AV/EDR tampering on WS-FIN-012.",
+     evidence:"Absence of EDR telemetry during attack window suggests possible AV evasion or disablement",
+     detect:"Security product heartbeat loss; Windows Defender status events; EDR agent health monitoring",
+     fix:"Verify EDR status on all affected hosts; check AV exclusion lists; review security service status"},
+    {id:"T1036.005",name:"Match Legitimate Name",status:"detected",sev:"medium",
+     desc:"Malicious scheduled task named 'WindowsUpdate' to appear legitimate.",
+     evidence:"Mar 8, 02:00 — Task named 'WindowsUpdate' — not created by Windows Update infrastructure",
+     detect:"Scheduled task baseline comparison; task binary path validation; signed binary verification",
+     fix:"Compare all task names and paths against approved baseline; alert on unsigned task binaries"},
+  ]},
+  {id:"TA0006",tactic:"Credential Access",color:"#ce93d8",techniques:[
+    {id:"T1110.001",name:"Password Guessing",status:"detected",sev:"critical",
+     desc:"8 rapid RDP login failures from Tor exit node followed by 1 success against DC-01.",
+     evidence:"Mar 5, 02:14 — 8 failures + 1 success from 185.220.101.42, Logon Type 10 (RDP)",
+     detect:"Failed login rate alert; account lockout threshold; Tor exit node IP intelligence",
+     fix:"Implement lockout: 5 failures → 30-min lockout; block Tor IPs; enable NLA; require MFA"},
+    {id:"T1056.003",name:"Web Portal Capture",status:"detected",sev:"high",
+     desc:"Credentials submitted by jsmith to attacker-controlled fake benefits portal.",
+     evidence:"Mar 4, 10:56 — POST to https://merid1anfg-benefits.com/submit.php credentials_submitted",
+     detect:"Proxy/DNS logs for lookalike domains; phishing URL inspection; credential submission alerts",
+     fix:"Reset jsmith password immediately; train staff on URL verification; deploy phishing-resistant MFA"},
+    {id:"T1003",name:"OS Credential Dumping",status:"suspected",sev:"critical",
+     desc:"Admin share + PowerShell access creates opportunity for LSASS credential dump.",
+     evidence:"Admin access to ADMIN$ on WS-IT-007 + encoded PS execution pattern",
+     detect:"LSASS process access (Sysmon); Mimikatz signatures; EDR credential dump behavioral detection",
+     fix:"Enable PPL (Protected Process Light) for LSASS; audit LSASS access events; check for PTH indicators"},
+    {id:"T1555",name:"Password Store Access",status:"not_observed",sev:"high",
+     desc:"No confirmed browser or vault credential extraction observed.",
+     evidence:null,
+     detect:"Browser process memory access; credential vault API calls; EDR file access monitoring",
+     fix:"Enforce credential manager policies; use hardware-backed credential stores (TPM); review vault ACLs"},
+  ]},
+  {id:"TA0007",tactic:"Discovery",color:"#29b6f6",techniques:[
+    {id:"T1018",name:"Remote System Discovery",status:"detected",sev:"high",
+     desc:"Multiple internal hosts targeted sequentially: WS-HR-003, WS-IT-007, linux-web-01, DC-01.",
+     evidence:"Mar 7, 01:15–01:20 — SMB to WS-HR-003, WS-IT-007; SSH to linux-web-01; prior RDP to DC-01",
+     detect:"Internal host connection fan-out detection; SMB sweep alerts; lateral discovery SIEM rules",
+     fix:"Implement network micro-segmentation; alert on workstation-to-workstation SMB; review firewall rules"},
+    {id:"T1083",name:"File & Directory Discovery",status:"suspected",sev:"medium",
+     desc:"C$ access on WS-HR-003 implies full filesystem browsing for sensitive HR data.",
+     evidence:"Mar 7, 01:15 — \\\\WS-HR-003\\C$ (complete filesystem access via admin share)",
+     detect:"File enumeration pattern (high-frequency directory reads); SMB traversal alerts; DLP file access",
+     fix:"Disable C$ admin shares; enable file auditing on HR/Finance systems; deploy file access DLP"},
+    {id:"T1016",name:"System Network Config",status:"suspected",sev:"low",
+     desc:"Network topology knowledge required for targeted DC-01 and linux-web-01 access.",
+     evidence:"Targeted access to specific IPs suggests prior network enumeration (ipconfig, nslookup, netstat)",
+     detect:"ipconfig/netstat/arp process execution; network enumeration tool signatures",
+     fix:"Monitor for network enumeration commands; network flow analysis for discovery patterns"},
+    {id:"T1057",name:"Process Discovery",status:"not_observed",sev:"low",
+     desc:"No confirmed process enumeration; possible via PowerShell script.",
+     evidence:null,
+     detect:"tasklist.exe / Get-Process execution logging; PowerShell process enumeration monitoring",
+     fix:"Monitor for process enumeration commands; enable SACL auditing for process creation"},
+  ]},
+  {id:"TA0008",tactic:"Lateral Movement",color:"#4fc3f7",techniques:[
+    {id:"T1021.002",name:"SMB/Windows Admin Shares",status:"detected",sev:"critical",
+     desc:"C$ and ADMIN$ shares accessed across HR and IT workstations at 01:15 AM from finance host.",
+     evidence:"Mar 7, 01:15 — \\\\WS-HR-003\\C$; 01:17 — \\\\WS-IT-007\\ADMIN$ (from WS-FIN-012)",
+     detect:"Admin share access alerts; SMB from workstation-to-workstation; off-hours lateral movement SIEM rule",
+     fix:"Disable admin shares via GPO; isolate WS-FIN-012; audit all hosts jsmith connected to"},
+    {id:"T1021.001",name:"Remote Desktop Protocol",status:"detected",sev:"critical",
+     desc:"Attacker RDP'd into DC-01 from Tor exit node using stolen jsmith credentials.",
+     evidence:"Mar 5, 02:14 — RDP Logon Type 10 from 185.220.101.42 to DC-01 — success after 8 failures",
+     detect:"External IP RDP alert; Tor exit node detection; off-hours DC login; Logon Type 10 alerting",
+     fix:"Restrict RDP to VPN/jump host only; enable NLA; deploy RDP gateway with MFA; block external RDP at FW"},
+    {id:"T1021.004",name:"SSH",status:"detected",sev:"high",
+     desc:"Off-hours SSH from finance workstation (WS-FIN-012) to linux-web-01 at 01:20 AM.",
+     evidence:"Mar 7, 01:20 — SSH from WS-FIN-012 (10.0.0.105) to linux-web-01 (10.0.0.30)",
+     detect:"Workstation-to-server SSH alert; off-hours SSH; deviation from user behavior baseline",
+     fix:"Restrict SSH to bastion/jump host only; finance workstations must not have SSH access to servers"},
+    {id:"T1550.002",name:"Pass the Hash",status:"suspected",sev:"critical",
+     desc:"Extensive lateral movement pattern is consistent with pass-the-hash attack using NTLM hashes.",
+     evidence:"Rapid multi-host access without re-authentication prompt suggests hash reuse",
+     detect:"NTLM authentication anomalies; single-source multi-destination auth; EDR hash dump indicators",
+     fix:"Enable Credential Guard; disable NTLM where possible; enforce Kerberos with AES encryption"},
+  ]},
+  {id:"TA0009",tactic:"Collection",color:"#26c6da",techniques:[
+    {id:"T1005",name:"Data from Local System",status:"detected",sev:"high",
+     desc:"Finance and HR data accessed from local systems via unrestricted admin share access.",
+     evidence:"Mar 7, 01:15 — C$ access on WS-HR-003 (HR data); WS-IT-007 ADMIN$ (IT configs)",
+     detect:"DLP alerts on sensitive file access; file access auditing on HR/Finance endpoints",
+     fix:"Enable file auditing on sensitive shares; deploy DLP; classify and label sensitive data"},
+    {id:"T1039",name:"Data from Network Share",status:"detected",sev:"high",
+     desc:"Network shares traversed across multiple departments for data collection.",
+     evidence:"Mar 7, 01:15–01:17 — Admin share access on WS-HR-003 and WS-IT-007",
+     detect:"Bulk file read alerts; cross-department share access; off-hours network share activity volume",
+     fix:"Implement least-privilege share access; audit permissions; alert on bulk reads from sensitive shares"},
+    {id:"T1074",name:"Data Staged",status:"detected",sev:"high",
+     desc:"107MB+ of data staged for exfiltration in C:\\temp\\ before upload (45MB + 62MB uploads).",
+     evidence:"Mar 8–9, 22:00 — 45MB and 62MB uploads imply large pre-staged data collection",
+     detect:"Large file creation in temp dirs; staging directory monitoring; disk usage anomaly alerts",
+     fix:"Investigate C:\\temp\\ on WS-FIN-012; identify staged file contents; preserve as forensic evidence"},
+    {id:"T1113",name:"Screen Capture",status:"not_observed",sev:"medium",
+     desc:"No screen capture activity confirmed; possible given remote access level.",
+     evidence:null,
+     detect:"Screenshot API call monitoring; EDR behavioral detection; unusual GDI API usage",
+     fix:"Investigate PS script for screen capture functions; monitor for PrintScreen automation"},
+  ]},
+  {id:"TA0011",tactic:"Command & Control",color:"#66bb6a",techniques:[
+    {id:"T1071.001",name:"Web Protocols (HTTP/S)",status:"detected",sev:"high",
+     desc:"HTTP POST to pastebin.com used as C2 channel — blends with legitimate web traffic.",
+     evidence:"Mar 7, 01:25 — POST https://pastebin.com/api/api_post.php 4KB from WS-FIN-012",
+     detect:"Web proxy category alerts; C2 domain reputation; anomalous POST volume; SSL inspection",
+     fix:"Block pastebin.com and transfer.sh at proxy; enable SSL/TLS inspection; alert on large outbound POSTs"},
+    {id:"T1105",name:"Ingress Tool Transfer",status:"suspected",sev:"high",
+     desc:"Invoke-WebRequest decoded from PS payload — likely used to download additional tools.",
+     evidence:"Decoded payload = Invoke-WebRequest — file download from external source",
+     detect:"PS file download telemetry; unexpected new executables; proxy download monitoring",
+     fix:"Analyze PS script for download URLs; inspect %TEMP% and C:\\temp\\ for new files; review proxy logs"},
+    {id:"T1573",name:"Encrypted Channel",status:"suspected",sev:"medium",
+     desc:"All exfil and C2 over HTTPS — content analysis bypassed by TLS encryption.",
+     evidence:"All identified traffic uses HTTPS (transfer.sh, pastebin.com, merid1anfg-benefits.com)",
+     detect:"JA3/JA3S TLS fingerprinting; certificate anomaly detection; SSL inspection at proxy",
+     fix:"Enable SSL/TLS inspection at proxy; alert on self-signed certs; deploy network DLP with inspection"},
+    {id:"T1219",name:"Remote Access Software",status:"not_observed",sev:"high",
+     desc:"No commercial RAT (TeamViewer, AnyDesk) detected; attacker used native RDP/SSH.",
+     evidence:null,
+     detect:"Process name and certificate validation for known RAT tools; EDR software inventory",
+     fix:"Block unauthorized remote access tools via AppLocker; alert on RAT process signatures"},
+  ]},
+  {id:"TA0010",tactic:"Exfiltration",color:"#6bbd5b",techniques:[
+    {id:"T1567.002",name:"Exfil via Cloud Storage",status:"detected",sev:"critical",
+     desc:"Two large uploads to transfer.sh — 45MB and 62MB — over consecutive nights.",
+     evidence:"Mar 8, 22:00 — 45MB POST to transfer.sh; Mar 9, 22:00 — 62MB POST to transfer.sh",
+     detect:"DLP upload volume alert; cloud storage category blocking; off-hours large transfer alert",
+     fix:"Block transfer.sh at proxy; implement upload DLP with size limits; review DNS/proxy for other C2 domains"},
+    {id:"T1048",name:"Exfil over Alt Protocol",status:"suspected",sev:"high",
+     desc:"DNS exfiltration not confirmed — investigate DNS query logs for high-entropy subdomains.",
+     evidence:"DNS logs not yet analyzed; possible covert channel alongside HTTPS exfil",
+     detect:"DNS query length and entropy analysis; NXDOMAIN storm detection; DNS exfil signatures",
+     fix:"Analyze DNS logs for encoded/long queries; implement DNS security monitoring (DNSMON/Zeek)"},
+    {id:"T1041",name:"Exfil over C2 Channel",status:"suspected",sev:"medium",
+     desc:"Pastebin POST may represent small data chunks exfiltrated over the C2 channel.",
+     evidence:"Mar 7, 01:25 — POST to pastebin.com/api — consistent with C2 exfil data chunking",
+     detect:"Web proxy POST monitoring; content inspection; DLP on web channel; pastebin API monitoring",
+     fix:"Review pastebin POST body content from proxy logs; enable content inspection on outbound web traffic"},
+  ]},
+  {id:"TA0040",tactic:"Impact",color:"#ef5350",techniques:[
+    {id:"T1490",name:"Inhibit System Recovery",status:"detected",sev:"critical",
+     desc:"All VSS shadow copies deleted — prevents backup-based recovery. Pre-ransomware pattern.",
+     evidence:"Mar 10, 03:00 — vssadmin delete shadows /all /quiet on WS-FIN-012",
+     detect:"VSS deletion alert; Sysmon process monitoring; backup health monitoring; EDR behavioral",
+     fix:"Verify offsite backups are intact; restore from golden image; validate shadow copies across fleet"},
+    {id:"T1485",name:"Data Destruction",status:"suspected",sev:"critical",
+     desc:"Data destruction possible as next attack stage — VSS + log clearing = pre-ransomware prep.",
+     evidence:"Sequential: shadow deletion + log clearing = known pre-encryption pattern (Ryuk/Conti/BlackBasta)",
+     detect:"File entropy monitoring; mass file rename/delete; bulk overwrite detection; honey file triggering",
+     fix:"PRIORITY: Isolate WS-FIN-012 NOW; verify backup integrity; initiate IR plan Stage 3 containment"},
+    {id:"T1486",name:"Data Encrypted for Impact",status:"not_observed",sev:"critical",
+     desc:"No ransomware execution yet — but attack chain is consistent with ransomware precursor TTPs.",
+     evidence:"Pattern matches Ryuk/Conti/BlackBasta pre-encryption preparation sequence",
+     detect:"File rename pattern (mass .encrypted/.ryuk extension); EDR behavioral; honey file modification",
+     fix:"URGENT: Contain all affected hosts; engage IR retainer; notify CISO and legal; preserve all evidence"},
+  ]},
+];
 
-/* ═══════════════════════ ICONS (inline SVG) ═══════════════════════ */
+/* ══════════ CONTAINMENT CHECKLIST ══════════ */
+const CONTAINMENT = [
+  {id:"c1",label:"Isolate WS-FIN-012 (10.0.0.105) from network — cut switch port or VLAN"},
+  {id:"c2",label:"Force immediate password reset for jsmith across all systems"},
+  {id:"c3",label:"Revoke all active sessions for jsmith (VPN, RDP, AD tokens)"},
+  {id:"c4",label:"Block 185.220.101.42 and 91.234.56.78 at perimeter firewall"},
+  {id:"c5",label:"Block merid1anfg.com and merid1anfg-benefits.com at DNS resolver and proxy"},
+  {id:"c6",label:"Disable external RDP access on DC-01 (close port 3389 at FW)"},
+  {id:"c7",label:"Preserve SIEM logs — take snapshot before any host remediation"},
+  {id:"c8",label:"Collect memory dump from WS-FIN-012 (volatile evidence)"},
+  {id:"c9",label:"Scan entire fleet for scheduled task named 'WindowsUpdate'"},
+  {id:"c10",label:"Scan fleet for HKCU Run key pointing to C:\\temp\\update.ps1"},
+  {id:"c11",label:"Verify offline/immutable backup integrity (pre-compromise restore point)"},
+  {id:"c12",label:"Notify CISO, Legal, and DPO — assess data breach notification requirements"},
+  {id:"c13",label:"Enable enhanced logging on DC-01, VPN-GW-01, and MAIL-GW-01"},
+  {id:"c14",label:"Engage IR retainer / escalate to Tier 3 response team"},
+];
+
+/* ══════════ ICONS ══════════ */
 const I = {
-  shield: (c="#fff",s=18) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-  search: (c="#6bbd5b",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
-  bell: (c="#888",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
-  activity: (c="#6bbd5b",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
-  alert: (c="#ff4444",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>,
-  lock: (c="#ff8c00",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
-  users: (c="#4fc3f7",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-  globe: (c="#ff8c00",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>,
-  terminal: (c="#6bbd5b",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>,
-  eye: (c="#ffd700",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>,
-  chart: (c="#6bbd5b",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>,
-  skull: (c="#ff4444",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M8 20v2h8v-2"/><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M16 20a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20"/></svg>,
-  clock: (c="#888",s=10) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-  x: (c="#666",s=16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
-  chevR: (c="#444",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>,
-  monitor: (c="#6bbd5b",s=14) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>,
+  shield:(c="#fff",s=18)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  search:(c="#6bbd5b",s=16)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+  bell:(c="#888",s=16)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  activity:(c="#6bbd5b",s=14)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+  alert:(c="#ff4444",s=14)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>,
+  lock:(c="#ff8c00",s=14)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  users:(c="#4fc3f7",s=14)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  globe:(c="#ff8c00",s=14)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>,
+  terminal:(c="#6bbd5b",s=16)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>,
+  eye:(c="#ffd700",s=16)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>,
+  chart:(c="#6bbd5b",s=16)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>,
+  skull:(c="#ff4444",s=14)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M8 20v2h8v-2"/><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M16 20a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20"/></svg>,
+  clock:(c="#888",s=10)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  x:(c="#666",s=16)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+  chevR:(c="#444",s=14)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>,
+  monitor:(c="#6bbd5b",s=14)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>,
+  check:(c="#6bbd5b",s=14)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>,
+  map:(c="#4fc3f7",s=16)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>,
+  zap:(c="#ffd700",s=14)=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
 };
 
-/* ═══════════════════════ CHART COMPONENTS ═══════════════════════ */
-function TimeChart({data, width=700, height=180}) {
+/* ══════════ CHART COMPONENTS ══════════ */
+function TimeChart({data,width=680,height=170}) {
   const ref = useRef();
-  useEffect(() => {
+  useEffect(()=>{
     if(!ref.current||!data.length) return;
-    const svg = d3.select(ref.current); svg.selectAll("*").remove();
-    const m={top:20,right:20,bottom:35,left:45}, w=width-m.left-m.right, h=height-m.top-m.bottom;
-    const g = svg.append("g").attr("transform",`translate(${m.left},${m.top})`);
-    const x = d3.scaleBand().domain(data.map(d=>d.label)).range([0,w]).padding(0.3);
-    const y = d3.scaleLinear().domain([0,d3.max(data,d=>d.total)]).nice().range([h,0]);
-    g.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(x).tickSize(0)).selectAll("text").style("fill","#888").style("font-size","10px").attr("transform","rotate(-30)").style("text-anchor","end");
-    g.append("g").call(d3.axisLeft(y).ticks(5).tickSize(-w)).selectAll("text").style("fill","#888").style("font-size","10px");
-    g.selectAll(".tick line").style("stroke","#333"); g.selectAll(".domain").style("stroke","#444");
-    data.forEach(d => {
-      const failH = y(0)-y(d.fail), succH = y(0)-y(d.success);
-      g.append("rect").attr("x",x(d.label)).attr("y",h-failH-succH).attr("width",x.bandwidth()).attr("height",succH).attr("fill","#6bbd5b").attr("rx",2);
-      g.append("rect").attr("x",x(d.label)).attr("y",h-failH).attr("width",x.bandwidth()).attr("height",failH).attr("fill","#ff4444").attr("rx",2);
+    const svg=d3.select(ref.current); svg.selectAll("*").remove();
+    const m={top:16,right:16,bottom:32,left:38}, w=width-m.left-m.right, h=height-m.top-m.bottom;
+    const g=svg.append("g").attr("transform",`translate(${m.left},${m.top})`);
+    const x=d3.scaleBand().domain(data.map(d=>d.label)).range([0,w]).padding(0.3);
+    const y=d3.scaleLinear().domain([0,d3.max(data,d=>d.total)||1]).nice().range([h,0]);
+    g.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(x).tickSize(0)).selectAll("text").style("fill","#666").style("font-size","10px").attr("transform","rotate(-25)").style("text-anchor","end");
+    g.append("g").call(d3.axisLeft(y).ticks(4).tickSize(-w)).selectAll("text").style("fill","#666").style("font-size","10px");
+    g.selectAll(".tick line").style("stroke","#222"); g.selectAll(".domain").style("stroke","#333");
+    data.forEach(d=>{
+      const fH=y(0)-y(d.fail), sH=y(0)-y(d.success);
+      g.append("rect").attr("x",x(d.label)).attr("y",h-fH-sH).attr("width",x.bandwidth()).attr("height",sH).attr("fill","#6bbd5b").attr("rx",2);
+      g.append("rect").attr("x",x(d.label)).attr("y",h-fH).attr("width",x.bandwidth()).attr("height",fH).attr("fill","#ff4444").attr("rx",2);
     });
   },[data,width,height]);
-  return React.createElement("svg",{ref,width,height});
+  return <svg ref={ref} width={width} height={height}/>;
 }
 
-function MiniBar({data, color="#6bbd5b", w=180, h=30}) {
-  const ref = useRef();
-  useEffect(() => {
+function MiniBar({data,color="#6bbd5b",w=180,h=28}) {
+  const ref=useRef();
+  useEffect(()=>{
     if(!ref.current||!data.length) return;
-    const svg = d3.select(ref.current); svg.selectAll("*").remove();
-    const x = d3.scaleBand().domain(data.map((_,i)=>i)).range([0,w]).padding(0.4);
-    const y = d3.scaleLinear().domain([0,d3.max(data)]).range([h,4]);
-    data.forEach((v,i) => { svg.append("rect").attr("x",x(i)).attr("y",y(v)).attr("width",x.bandwidth()).attr("height",h-y(v)).attr("fill",color).attr("rx",2).attr("opacity",0.85); });
+    const svg=d3.select(ref.current); svg.selectAll("*").remove();
+    const x=d3.scaleBand().domain(data.map((_,i)=>i)).range([0,w]).padding(0.4);
+    const y=d3.scaleLinear().domain([0,d3.max(data)||1]).range([h,2]);
+    data.forEach((v,i)=>{svg.append("rect").attr("x",x(i)).attr("y",y(v)).attr("width",x.bandwidth()).attr("height",h-y(v)).attr("fill",color).attr("rx",2).attr("opacity",0.8);});
   },[data,color,w,h]);
-  return React.createElement("svg",{ref,width:w,height:h});
+  return <svg ref={ref} width={w} height={h}/>;
 }
 
-function DonutChart({segments, size=120}) {
-  const ref = useRef();
-  useEffect(() => {
+function DonutChart({segments,size=110}) {
+  const ref=useRef();
+  useEffect(()=>{
     if(!ref.current) return;
-    const svg = d3.select(ref.current); svg.selectAll("*").remove();
-    const r = size/2-10, g = svg.append("g").attr("transform",`translate(${size/2},${size/2})`);
-    const pie = d3.pie().value(d=>d.value).sort(null);
-    const arc = d3.arc().innerRadius(r*0.6).outerRadius(r);
-    g.selectAll("path").data(pie(segments)).enter().append("path").attr("d",arc).attr("fill",d=>d.data.color).attr("stroke","#1e1e1e").attr("stroke-width",2);
-    g.append("text").attr("text-anchor","middle").attr("dy","0.35em").style("fill","#e0e0e0").style("font-size","18px").style("font-weight","700").text(segments.reduce((a,s)=>a+s.value,0));
+    const svg=d3.select(ref.current); svg.selectAll("*").remove();
+    const r=size/2-8, g=svg.append("g").attr("transform",`translate(${size/2},${size/2})`);
+    const pie=d3.pie().value(d=>d.value).sort(null);
+    const arc=d3.arc().innerRadius(r*0.62).outerRadius(r);
+    g.selectAll("path").data(pie(segments)).enter().append("path").attr("d",arc).attr("fill",d=>d.data.color).attr("stroke","#111").attr("stroke-width",2);
+    g.append("text").attr("text-anchor","middle").attr("dy","0.35em").style("fill","#e0e0e0").style("font-size","17px").style("font-weight","700").text(segments.reduce((a,s)=>a+s.value,0));
   },[segments,size]);
-  return React.createElement("svg",{ref,width:size,height:size});
+  return <svg ref={ref} width={size} height={size}/>;
 }
 
 function AttackTimeline({events}) {
-  return React.createElement("div",{style:{position:"relative",paddingLeft:24}},
-    React.createElement("div",{style:{position:"absolute",left:10,top:0,bottom:0,width:2,background:"#333"}}),
-    events.map((e,i) => React.createElement("div",{key:i,style:{display:"flex",gap:12,marginBottom:12,position:"relative"}},
-      React.createElement("div",{style:{position:"absolute",left:-18,top:6,width:10,height:10,borderRadius:"50%",background:SEV[e.sev]||"#6bbd5b",border:"2px solid #1e1e1e",zIndex:1}}),
-      React.createElement("div",{style:{flex:1,paddingLeft:8}},
-        React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
-          React.createElement("span",{style:{color:"#888",fontFamily:"'JetBrains Mono',monospace",fontSize:11}},e.time),
-          React.createElement("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:3,background:SEV[e.sev]+"22",color:SEV[e.sev],fontWeight:600,textTransform:"uppercase"}},e.mitre)
-        ),
-        React.createElement("div",{style:{color:"#e0e0e0",fontSize:13,fontWeight:600,marginTop:2}},e.title)
-      )
-    ))
+  return (
+    <div style={{position:"relative",paddingLeft:22}}>
+      <div style={{position:"absolute",left:8,top:0,bottom:0,width:2,background:"linear-gradient(to bottom,#333,#222)"}}/>
+      {events.map((e,i)=>(
+        <div key={i} style={{display:"flex",gap:10,marginBottom:10,position:"relative"}}>
+          <div style={{position:"absolute",left:-16,top:5,width:9,height:9,borderRadius:"50%",background:SEV[e.sev]||"#6bbd5b",border:"2px solid #111",zIndex:1}}/>
+          <div style={{flex:1,paddingLeft:6}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{color:"#666",fontFamily:"'JetBrains Mono',monospace",fontSize:10}}>{e.time}</span>
+              <span style={{fontSize:9,padding:"1px 6px",borderRadius:3,background:SEV[e.sev]+"22",color:SEV[e.sev],fontWeight:700}}>{e.mitre}</span>
+            </div>
+            <div style={{color:"#d0d0d0",fontSize:12,fontWeight:600,marginTop:2}}>{e.title}</div>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
-/* ═══════════════════════ MAIN APP ═══════════════════════ */
+/* ══════════ MITRE TECH DETAIL PANEL ══════════ */
+function TechDetailPanel({tech, tactic, tacticColor, onClose}) {
+  if(!tech) return null;
+  return (
+    <div className="slide-in" style={{background:"#141414",border:`1px solid ${tacticColor}33`,borderRadius:8,padding:18,position:"sticky",top:0,maxHeight:"calc(100vh - 140px)",overflowY:"auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+        <div>
+          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:6}}>
+            <span style={{fontSize:10,padding:"2px 7px",borderRadius:3,background:STCOL[tech.status]+"22",color:STCOL[tech.status],fontWeight:700}}>{STLBL[tech.status]}</span>
+            <span style={{fontSize:10,padding:"2px 7px",borderRadius:3,background:SEV[tech.sev]+"22",color:SEV[tech.sev],fontWeight:700,textTransform:"uppercase"}}>{tech.sev}</span>
+          </div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:tacticColor,fontWeight:700}}>{tech.id}</div>
+          <div style={{fontSize:14,fontWeight:700,marginTop:2}}>{tech.name}</div>
+          <div style={{fontSize:10,color:"#666",marginTop:2}}>Tactic: {tactic}</div>
+        </div>
+        <button onClick={onClose} style={{background:"none",border:"none",padding:0}}>{I.x("#555",15)}</button>
+      </div>
+      <div style={{fontSize:12,color:"#bbb",lineHeight:1.7,marginBottom:12}}>{tech.desc}</div>
+      {tech.evidence && (
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:10,color:"#666",textTransform:"uppercase",fontWeight:700,marginBottom:5}}>Evidence in Logs</div>
+          <div style={{background:"#0d0d0d",borderRadius:5,padding:10,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:"#ffd700",lineHeight:1.6,borderLeft:"3px solid #ffd70044"}}>{tech.evidence}</div>
+        </div>
+      )}
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:10,color:"#666",textTransform:"uppercase",fontWeight:700,marginBottom:5}}>Detection Methods</div>
+        <div style={{fontSize:12,color:"#aaa",lineHeight:1.7,background:"#0d0d0d",borderRadius:5,padding:10,borderLeft:"3px solid #4fc3f744"}}>{tech.detect}</div>
+      </div>
+      <div>
+        <div style={{fontSize:10,color:"#666",textTransform:"uppercase",fontWeight:700,marginBottom:5}}>Remediation Steps</div>
+        <div style={{background:"#0d0d0d",borderRadius:5,padding:10,borderLeft:"3px solid #6bbd5b44"}}>
+          {tech.fix.split(";").map((step,i)=>(
+            <div key={i} style={{display:"flex",gap:7,marginBottom:i<tech.fix.split(";").length-1?6:0}}>
+              <span style={{color:"#6bbd5b",flexShrink:0,marginTop:1}}>{I.check("#6bbd5b",11)}</span>
+              <span style={{fontSize:11,color:"#bbb",lineHeight:1.5}}>{step.trim()}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ MITRE MATRIX HEATMAP VIEW ══════════ */
+function MitreHeatmapView({matrix, selected, onSelect}) {
+  return (
+    <div style={{overflowX:"auto",paddingBottom:8}}>
+      <div style={{display:"flex",gap:3,minWidth:1380}}>
+        {matrix.map(tac=>(
+          <div key={tac.id} style={{flex:1,minWidth:102}}>
+            <div style={{background:tac.color+"18",borderBottom:`2px solid ${tac.color}`,padding:"6px 6px",marginBottom:3,borderRadius:"4px 4px 0 0"}}>
+              <div style={{fontSize:9,fontWeight:800,color:tac.color,textTransform:"uppercase",letterSpacing:"0.4px",lineHeight:1.2}}>{tac.tactic}</div>
+              <div style={{fontSize:9,color:"#555",marginTop:1}}>{tac.id}</div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:2}}>
+              {tac.techniques.map(tech=>(
+                <div key={tech.id} className="tech-cell" onClick={()=>onSelect(selected?.id===tech.id?null:tech,tac)}
+                  style={{padding:"4px 5px",borderRadius:3,cursor:"pointer",
+                    background:selected?.id===tech.id?STCOL[tech.status]+"44":STCOL[tech.status]+"14",
+                    border:`1px solid ${selected?.id===tech.id?STCOL[tech.status]:STCOL[tech.status]+"33"}`}}>
+                  <div style={{fontSize:8,color:STCOL[tech.status],fontFamily:"'JetBrains Mono',monospace",fontWeight:700,lineHeight:1}}>{tech.id}</div>
+                  <div style={{fontSize:8,color:"#999",marginTop:2,lineHeight:1.3}}>{tech.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ MAIN APP ══════════ */
 function App() {
-  const [activeTab, setActiveTab] = useState("overview");
-  const [query, setQuery] = useState("");
-  const [searchResults, setSearchResults] = useState(null);
-  const [selectedAlert, setSelectedAlert] = useState(null);
-  const [alertStatuses, setAlertStatuses] = useState({});
-  const [expandedLog, setExpandedLog] = useState(null);
-  const [timeRange, setTimeRange] = useState("7d");
+  const [activeTab,setActiveTab]=useState("overview");
+  const [query,setQuery]=useState("");
+  const [searchResults,setSearchResults]=useState(null);
+  const [selectedAlert,setSelectedAlert]=useState(null);
+  const [alertStatuses,setAlertStatuses]=useState({});
+  const [alertNotes,setAlertNotes]=useState({});
+  const [expandedLog,setExpandedLog]=useState(null);
+  const [alertFilter,setAlertFilter]=useState("all");
+  const [evTypeFilter,setEvTypeFilter]=useState("all");
+  const [mitreView,setMitreView]=useState("cards");
+  const [selectedTech,setSelectedTech]=useState(null);
+  const [selectedTactic,setSelectedTactic]=useState(null);
+  const [caseNotes,setCaseNotes]=useState("");
+  const [containmentDone,setContainmentDone]=useState({});
+  const [clock,setClock]=useState("");
 
-  const filteredLogs = useMemo(() => {
-    if(!searchResults) return LOGS;
-    const q = searchResults.toLowerCase();
-    return LOGS.filter(l => Object.values(l).some(v => String(v).toLowerCase().includes(q)));
-  },[searchResults]);
+  useEffect(()=>{
+    const tick=()=>{const n=new Date();setClock(n.toUTCString().replace("GMT","UTC"));};
+    tick(); const id=setInterval(tick,1000); return ()=>clearInterval(id);
+  },[]);
 
-  const handleSearch = () => {
+  const filteredLogs=useMemo(()=>{
+    let logs=LOGS;
+    if(searchResults){const q=searchResults.toLowerCase();logs=logs.filter(l=>Object.values(l).some(v=>String(v).toLowerCase().includes(q)));}
+    if(evTypeFilter!=="all") logs=logs.filter(l=>l.type===evTypeFilter);
+    return logs;
+  },[searchResults,evTypeFilter]);
+
+  const filteredAlerts=useMemo(()=>alertFilter==="all"?ALERTS:ALERTS.filter(a=>a.sev===alertFilter),[alertFilter]);
+
+  const handleSearch=()=>{
     if(!query.trim()){setSearchResults(null);setActiveTab("overview");return;}
-    let q = query.trim().toLowerCase().replace(/^index=\S*\s*/i,"").replace(/\|\s*search\s*/i,"").replace(/\|\s*head\s*\d*/i,"").replace(/"/g,"").trim();
+    let q=query.trim().toLowerCase().replace(/^index=\S*\s*/i,"").replace(/\|\s*search\s*/i,"").replace(/\|\s*head\s*\d*/i,"").replace(/"/g,"").trim();
     if(q){setSearchResults(q);setActiveTab("events");}
   };
 
-  const loginChart = useMemo(() => {
-    const days = ["Mar 4","Mar 5","Mar 6","Mar 7","Mar 8","Mar 9","Mar 10"];
-    return days.map(d => {
-      const dayLogs = LOGS.filter(l => l.type==="login" && l.t.includes("2024-03-"+d.split(" ")[1].padStart(2,"0")));
-      return {label:d,success:dayLogs.filter(l=>l.status==="success").length,fail:dayLogs.filter(l=>l.status==="failure").length,total:dayLogs.length};
+  const loginChart=useMemo(()=>{
+    const days=["Mar 4","Mar 5","Mar 6","Mar 7","Mar 8","Mar 9","Mar 10"];
+    return days.map(d=>{
+      const dl=LOGS.filter(l=>l.type==="login"&&l.t.includes("2024-03-"+d.split(" ")[1].padStart(2,"0")));
+      return {label:d,success:dl.filter(l=>l.status==="success").length,fail:dl.filter(l=>l.status==="failure").length,total:dl.length};
     });
   },[]);
 
-  const topIPs = useMemo(() => {
+  const topIPs=useMemo(()=>{
     const c={}; LOGS.filter(l=>l.status==="failure").forEach(l=>{c[l.src]=(c[l.src]||0)+1;});
     return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,5);
   },[]);
 
-  const sevCounts = useMemo(() => {
-    const c={critical:0,high:0,medium:0,low:0};
-    ALERTS.forEach(a=>{c[a.sev]=(c[a.sev]||0)+1;});
-    return c;
+  const sevCounts=useMemo(()=>{const c={critical:0,high:0,medium:0,low:0};ALERTS.forEach(a=>{c[a.sev]=(c[a.sev]||0)+1;});return c;},[]);
+
+  const mitreCoverage=useMemo(()=>{
+    let det=0,sus=0,no=0,tot=0;
+    MITRE_MATRIX.forEach(t=>t.techniques.forEach(tc=>{tot++;if(tc.status==="detected")det++;else if(tc.status==="suspected")sus++;else no++;}));
+    return {det,sus,no,tot,pct:Math.round((det/tot)*100)};
   },[]);
 
-  const tabs = [
-    {id:"overview",label:"Overview",icon:"chart"},
-    {id:"alerts",label:"Alerts",icon:"bell"},
-    {id:"events",label:"Events",icon:"terminal"},
-    {id:"investigation",label:"Investigate",icon:"eye"},
-    {id:"mitre",label:"ATT&CK",icon:"shield"},
-  ];
+  const evTypes=useMemo(()=>["all",...new Set(LOGS.map(l=>l.type))]  ,[]);
 
-  // Stat cards data
-  const stats = [
+  const typeBg=t=>t==="login"?"#4fc3f722":t.includes("email")?"#ffd70022":t==="process_create"?"#ff444422":t==="smb_access"?"#ff8c0022":t==="registry_write"?"#e040fb22":"#6bbd5b22";
+  const typeCol=t=>t==="login"?"#4fc3f7":t.includes("email")?"#ffd700":t==="process_create"?"#ff4444":t==="smb_access"?"#ff8c00":t==="registry_write"?"#e040fb":"#6bbd5b";
+
+  const stats=[
     {label:"Total Events",value:LOGS.length,icon:I.activity,color:"#6bbd5b",spark:[3,7,5,8,4,6,9]},
-    {label:"Active Alerts",value:ALERTS.length,icon:I.alert,color:"#ff4444",spark:[0,0,2,3,1,1,1]},
+    {label:"Active Alerts",value:ALERTS.length,icon:I.alert,color:"#ff4444",spark:[0,0,2,3,2,1,0]},
     {label:"Failed Logins",value:LOGS.filter(l=>l.type==="login"&&l.status==="failure").length,icon:I.lock,color:"#ff8c00",spark:[0,8,0,0,0,0,0]},
     {label:"Unique Users",value:[...new Set(LOGS.map(l=>l.user))].length,icon:I.users,color:"#4fc3f7",spark:[6,7,5,7,5,4,6]},
   ];
 
-  const typeBg = t => t==="login"?"#4fc3f722":t.includes("email")?"#ffd70022":t==="process_create"?"#ff444422":t==="smb_access"?"#ff8c0022":"#6bbd5b22";
-  const typeCol = t => t==="login"?"#4fc3f7":t.includes("email")?"#ffd700":t==="process_create"?"#ff4444":t==="smb_access"?"#ff8c00":"#6bbd5b";
+  const tabs=[
+    {id:"overview",label:"Overview",icon:"chart"},
+    {id:"alerts",label:"Alerts",icon:"bell"},
+    {id:"events",label:"Events",icon:"terminal"},
+    {id:"investigation",label:"Investigate",icon:"eye"},
+    {id:"mitre",label:"ATT&CK",icon:"map"},
+  ];
 
-  return React.createElement("div",{style:{minHeight:"100vh",background:"#111",color:"#e0e0e0",fontFamily:"'DM Sans',sans-serif"}},
-    /* ─── TOP BAR ─── */
-    React.createElement("div",{style:{background:"#0d0d0d",borderBottom:"1px solid #222",padding:"8px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}},
-      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
-        React.createElement("div",{style:{width:32,height:32,borderRadius:6,background:"linear-gradient(135deg,#6bbd5b,#2d7d2d)",display:"flex",alignItems:"center",justifyContent:"center"}},I.shield("#fff",18)),
-        React.createElement("span",{style:{fontWeight:800,fontSize:15,letterSpacing:"-0.3px"}},"MERIDIAN"),
-        React.createElement("span",{style:{fontWeight:300,fontSize:15,color:"#6bbd5b"}},"SOC"),
-        React.createElement("span",{style:{fontSize:10,color:"#666",marginLeft:8,padding:"2px 8px",border:"1px solid #333",borderRadius:3}},"SIEM v9.2")
-      ),
-      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:16}},
-        React.createElement("div",{style:{position:"relative"}},I.bell("#888",16),
-          React.createElement("div",{style:{position:"absolute",top:-4,right:-4,width:14,height:14,borderRadius:7,background:"#ff4444",fontSize:9,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}},ALERTS.length)
-        ),
-        React.createElement("div",{style:{width:28,height:28,borderRadius:14,background:"#2d7d2d",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff"}},"MC")
-      )
-    ),
+  return (
+    <div style={{minHeight:"100vh",background:"#0f0f0f",color:"#e0e0e0",fontFamily:"'DM Sans',sans-serif"}}>
 
-    React.createElement("div",{style:{display:"flex"}},
-      /* ─── SIDEBAR ─── */
-      React.createElement("div",{style:{width:52,background:"#0d0d0d",borderRight:"1px solid #222",padding:"12px 0",display:"flex",flexDirection:"column",alignItems:"center",gap:4,minHeight:"calc(100vh - 54px)"}},
-        tabs.map(tab => {
-          const active = activeTab===tab.id;
-          const iconFn = tab.icon==="chart"?I.chart:tab.icon==="bell"?I.bell:tab.icon==="terminal"?I.terminal:tab.icon==="eye"?I.eye:I.shield;
-          return React.createElement("button",{key:tab.id,onClick:()=>setActiveTab(tab.id),title:tab.label,
-            style:{width:40,height:40,borderRadius:6,border:"none",background:active?"#1e3a1e":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}},
-            iconFn(active?"#6bbd5b":"#666",18),
-            tab.id==="alerts"&&React.createElement("div",{style:{position:"absolute",top:4,right:4,width:8,height:8,borderRadius:4,background:"#ff4444"}})
-          );
-        })
-      ),
+      {/* ── TOP BAR ── */}
+      <div style={{background:"#0a0a0a",borderBottom:"1px solid #1e1e1e",padding:"7px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:30,height:30,borderRadius:6,background:"linear-gradient(135deg,#6bbd5b,#2a6a2a)",display:"flex",alignItems:"center",justifyContent:"center"}}>{I.shield("#fff",16)}</div>
+          <span style={{fontWeight:800,fontSize:14,letterSpacing:"-0.3px"}}>MERIDIAN</span>
+          <span style={{fontWeight:300,fontSize:14,color:"#6bbd5b"}}>SOC</span>
+          <span style={{fontSize:9,color:"#555",marginLeft:6,padding:"2px 7px",border:"1px solid #252525",borderRadius:3}}>SIEM v9.2</span>
+        </div>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#555",display:"flex",alignItems:"center",gap:6}}>
+          <span className="live" style={{width:6,height:6,borderRadius:3,background:"#6bbd5b",display:"inline-block"}}/>
+          {clock}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <div style={{position:"relative",cursor:"pointer"}} onClick={()=>setActiveTab("alerts")}>
+            {I.bell(activeTab==="alerts"?"#ff4444":"#888",16)}
+            <div style={{position:"absolute",top:-4,right:-4,width:14,height:14,borderRadius:7,background:"#ff4444",fontSize:9,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>{ALERTS.length}</div>
+          </div>
+          <div style={{width:26,height:26,borderRadius:13,background:"#2a6a2a",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#fff"}}>MC</div>
+        </div>
+      </div>
 
-      /* ─── MAIN ─── */
-      React.createElement("div",{style:{flex:1,padding:20,maxHeight:"calc(100vh - 54px)",overflowY:"auto"}},
-        /* Search */
-        React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",background:"#1a1a1a",border:"1px solid #333",borderRadius:4,padding:"6px 12px",marginBottom:16}},
-          I.search("#6bbd5b",16),
-          React.createElement("input",{value:query,onChange:e=>setQuery(e.target.value),onKeyDown:e=>e.key==="Enter"&&handleSearch(),placeholder:'index=* | search ...',
-            style:{flex:1,background:"transparent",border:"none",color:"#e0e0e0",fontFamily:"'JetBrains Mono',monospace",fontSize:13,outline:"none"}}),
-          React.createElement("button",{onClick:handleSearch,style:{background:"#6bbd5b",color:"#000",border:"none",borderRadius:3,padding:"4px 16px",fontWeight:700,cursor:"pointer",fontSize:12}},"Search")
-        ),
+      <div style={{display:"flex"}}>
+        {/* ── SIDEBAR ── */}
+        <div style={{width:52,background:"#0a0a0a",borderRight:"1px solid #1e1e1e",padding:"10px 0",display:"flex",flexDirection:"column",alignItems:"center",gap:3,minHeight:"calc(100vh - 48px)"}}>
+          {tabs.map(tab=>{
+            const active=activeTab===tab.id;
+            const iconFn=tab.icon==="chart"?I.chart:tab.icon==="bell"?I.bell:tab.icon==="terminal"?I.terminal:tab.icon==="eye"?I.eye:I.map;
+            return (
+              <button key={tab.id} onClick={()=>setActiveTab(tab.id)} title={tab.label}
+                style={{width:38,height:38,borderRadius:6,border:"none",background:active?"#1a3a1a":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+                {iconFn(active?"#6bbd5b":"#555",17)}
+                {tab.id==="alerts"&&<div style={{position:"absolute",top:4,right:4,width:7,height:7,borderRadius:4,background:"#ff4444"}}/>}
+              </button>
+            );
+          })}
+        </div>
 
-        /* ═══ OVERVIEW ═══ */
-        activeTab==="overview"&&React.createElement("div",null,
-          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}},
-            stats.map((s,i) => React.createElement("div",{key:i,style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
-              React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
-                React.createElement("div",null,
-                  React.createElement("div",{style:{fontSize:11,color:"#888",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}},s.label),
-                  React.createElement("div",{style:{fontSize:28,fontWeight:800,letterSpacing:"-1px"}},s.value)
-                ),
-                React.createElement("div",{style:{width:32,height:32,borderRadius:6,background:s.color+"15",display:"flex",alignItems:"center",justifyContent:"center"}},s.icon)
-              ),
-              React.createElement("div",{style:{marginTop:8}},React.createElement(MiniBar,{data:s.spark,color:s.color}))
-            ))
-          ),
-          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12,marginBottom:20}},
-            React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
-              React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:12,display:"flex",alignItems:"center",gap:6}},I.activity("#6bbd5b",14)," Login Activity by Day",
-                React.createElement("span",{style:{marginLeft:"auto",display:"flex",gap:12,fontSize:11}},
-                  React.createElement("span",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement("span",{style:{width:8,height:8,borderRadius:2,background:"#6bbd5b"}})," Success"),
-                  React.createElement("span",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement("span",{style:{width:8,height:8,borderRadius:2,background:"#ff4444"}})," Failure")
-                )
-              ),
-              React.createElement(TimeChart,{data:loginChart,width:520,height:180})
-            ),
-            React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
-              React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:12,display:"flex",alignItems:"center",gap:6}},I.alert("#ff4444",14)," Alerts by Severity"),
-              React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"center",gap:20}},
-                React.createElement(DonutChart,{segments:[{value:sevCounts.critical,color:SEV.critical},{value:sevCounts.high,color:SEV.high}],size:120}),
-                React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:6}},
-                  Object.entries(sevCounts).filter(([_,v])=>v>0).map(([k,v])=>React.createElement("div",{key:k,style:{display:"flex",alignItems:"center",gap:8,fontSize:12}},
-                    React.createElement("span",{style:{width:8,height:8,borderRadius:2,background:SEV[k]}}),
-                    React.createElement("span",{style:{color:"#aaa",textTransform:"capitalize"}},k),
-                    React.createElement("span",{style:{fontWeight:700}},v)
-                  ))
-                )
-              )
-            )
-          ),
-          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}},
-            React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
-              React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:12,display:"flex",alignItems:"center",gap:6}},I.globe("#ff8c00",14)," Top Source IPs (Failed Logins)"),
-              topIPs.map(([ip,count],i) => React.createElement("div",{key:ip,style:{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:i<topIPs.length-1?"1px solid #282828":"none"}},
-                React.createElement("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12,flex:1}},ip),
-                React.createElement("div",{style:{width:120,height:6,background:"#282828",borderRadius:3,overflow:"hidden"}},
-                  React.createElement("div",{style:{width:`${(count/topIPs[0][1])*100}%`,height:"100%",background:count>3?"#ff4444":"#ff8c00",borderRadius:3}})
-                ),
-                React.createElement("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:"#ff4444",fontWeight:700,width:30,textAlign:"right"}},count)
-              ))
-            ),
-            React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
-              React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:12,display:"flex",alignItems:"center",gap:6}},I.skull("#ff4444",14)," Active Alerts"),
-              ALERTS.slice(0,5).map(a => React.createElement("div",{key:a.id,onClick:()=>{setSelectedAlert(a);setActiveTab("alerts");},
-                style:{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #282828",cursor:"pointer"}},
-                React.createElement("span",{style:{width:8,height:8,borderRadius:4,background:SEV[a.sev],flexShrink:0}}),
-                React.createElement("div",{style:{flex:1,minWidth:0}},
-                  React.createElement("div",{style:{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},a.title),
-                  React.createElement("div",{style:{fontSize:10,color:"#666"}},a.time)
-                ),
-                I.chevR("#444",14)
-              ))
-            )
-          )
-        ),
+        {/* ── MAIN CONTENT ── */}
+        <div style={{flex:1,padding:18,maxHeight:"calc(100vh - 48px)",overflowY:"auto"}}>
 
-        /* ═══ ALERTS ═══ */
-        activeTab==="alerts"&&React.createElement("div",{style:{display:selectedAlert?"grid":"block",gridTemplateColumns:selectedAlert?"1fr 1fr":"1fr",gap:16}},
-          React.createElement("div",null,
-            React.createElement("h2",{style:{margin:"0 0 12px",fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}},I.bell("#ff4444",16)," Alert Queue (",ALERTS.length,")"),
-            ALERTS.map(a => {
-              const st = alertStatuses[a.id]||a.status;
-              return React.createElement("div",{key:a.id,onClick:()=>setSelectedAlert(a),
-                style:{background:selectedAlert?.id===a.id?"#1e2e1e":"#1a1a1a",border:`1px solid ${selectedAlert?.id===a.id?"#6bbd5b44":"#282828"}`,borderRadius:8,padding:14,marginBottom:8,cursor:"pointer",borderLeft:`3px solid ${SEV[a.sev]}`,transition:"all 0.15s"}},
-                React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4}},
-                  React.createElement("span",{style:{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:3,background:SEV[a.sev]+"22",color:SEV[a.sev],textTransform:"uppercase"}},a.sev),
-                  React.createElement("span",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#666"}},a.id),
-                  React.createElement("span",{style:{fontSize:10,padding:"2px 6px",borderRadius:3,background:st==="new"?"#ff444422":st==="investigating"?"#ffd70022":"#6bbd5b22",color:st==="new"?"#ff4444":st==="investigating"?"#ffd700":"#6bbd5b"}},st)
-                ),
-                React.createElement("div",{style:{fontSize:13,fontWeight:700}},a.title),
-                React.createElement("div",{style:{fontSize:11,color:"#888",marginTop:4,display:"flex",gap:16}},
-                  React.createElement("span",null,I.clock("#888",10)," ",a.time),
-                  React.createElement("span",null,I.globe("#888",10)," ",a.src)
-                )
-              );
-            })
-          ),
-          selectedAlert&&React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:20,position:"sticky",top:0,maxHeight:"calc(100vh - 120px)",overflowY:"auto"}},
-            React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}},
-              React.createElement("div",null,
-                React.createElement("span",{style:{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:3,background:SEV[selectedAlert.sev]+"22",color:SEV[selectedAlert.sev],textTransform:"uppercase"}},selectedAlert.sev),
-                React.createElement("h3",{style:{margin:"8px 0 0",fontSize:15,fontWeight:700}},selectedAlert.title)
-              ),
-              React.createElement("button",{onClick:()=>setSelectedAlert(null),style:{background:"none",border:"none",cursor:"pointer"}},I.x("#666",16))
-            ),
-            React.createElement("div",{style:{background:"#111",borderRadius:6,padding:14,marginBottom:16,fontSize:12,lineHeight:1.8,color:"#ccc",fontFamily:"'JetBrains Mono',monospace"}},selectedAlert.desc),
-            React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}},
-              [["Source IP",selectedAlert.src],["User",selectedAlert.user],["MITRE",selectedAlert.mitre+" \u2014 "+(MITRE[selectedAlert.mitre]||"")],["Time",selectedAlert.time]].map(([k,v])=>
-                React.createElement("div",{key:k,style:{background:"#111",borderRadius:4,padding:10}},
-                  React.createElement("div",{style:{fontSize:10,color:"#666",textTransform:"uppercase",marginBottom:4}},k),
-                  React.createElement("div",{style:{fontSize:12,fontFamily:"'JetBrains Mono',monospace"}},v)
-                )
-              )
-            ),
-            React.createElement("div",{style:{display:"flex",gap:8}},
-              ["investigating","escalated","closed"].map(s=>React.createElement("button",{key:s,onClick:()=>setAlertStatuses({...alertStatuses,[selectedAlert.id]:s}),
-                style:{flex:1,padding:"8px 0",borderRadius:4,border:`1px solid ${s==="investigating"?"#ffd700":s==="escalated"?"#ff4444":"#6bbd5b"}44`,background:s==="investigating"?"#ffd70011":s==="escalated"?"#ff444411":"#6bbd5b11",color:s==="investigating"?"#ffd700":s==="escalated"?"#ff4444":"#6bbd5b",fontSize:11,fontWeight:700,cursor:"pointer",textTransform:"capitalize"}},s))
-            )
-          )
-        ),
+          {/* Search */}
+          <div style={{display:"flex",gap:8,alignItems:"center",background:"#141414",border:"1px solid #252525",borderRadius:5,padding:"5px 12px",marginBottom:14}}>
+            {I.search("#6bbd5b",15)}
+            <input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSearch()}
+              placeholder='index=* | search user=jsmith src=185.220.101.42 type=login ...'
+              style={{flex:1,background:"transparent",border:"none",color:"#e0e0e0",fontFamily:"'JetBrains Mono',monospace",fontSize:12,outline:"none"}}/>
+            <button onClick={handleSearch} style={{background:"#6bbd5b",color:"#000",border:"none",borderRadius:3,padding:"3px 14px",fontWeight:700,cursor:"pointer",fontSize:11}}>Search</button>
+          </div>
 
-        /* ═══ EVENTS ═══ */
-        activeTab==="events"&&React.createElement("div",null,
-          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
-            React.createElement("h2",{style:{margin:0,fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}},I.terminal("#6bbd5b",16)," Events",
-              searchResults&&React.createElement("span",{style:{fontSize:12,color:"#888",fontWeight:400}},' \u2014 filtered by "',searchResults,'" (',filteredLogs.length," results)")
-            ),
-            searchResults&&React.createElement("button",{onClick:()=>{setSearchResults(null);setQuery("");},style:{background:"#ff444422",border:"1px solid #ff444444",color:"#ff4444",borderRadius:4,padding:"4px 12px",fontSize:11,cursor:"pointer"}},"Clear")
-          ),
-          React.createElement("div",{style:{overflowX:"auto"}},
-            React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
-              React.createElement("thead",null,React.createElement("tr",{style:{borderBottom:"2px solid #333"}},
-                ["Time","Src IP","Dst IP","User","Host","Type","Status","Details"].map(h=>React.createElement("th",{key:h,style:{textAlign:"left",padding:"8px 10px",fontSize:10,textTransform:"uppercase",color:"#888",fontWeight:600,letterSpacing:"0.5px"}},h))
-              )),
-              React.createElement("tbody",null,
-                filteredLogs.map((l,i)=>React.createElement("tr",{key:i,onClick:()=>setExpandedLog(expandedLog===i?null:i),
-                  style:{borderBottom:"1px solid #1e1e1e",cursor:"pointer",background:expandedLog===i?"#1e2e1e":i%2===0?"#161616":"#1a1a1a"}},
-                  React.createElement("td",{style:{padding:"6px 10px",color:"#888",whiteSpace:"nowrap"}},l.t),
-                  React.createElement("td",{style:{padding:"6px 10px",color:!l.src.startsWith("10.")&&l.src!=="N/A"?"#ff8c00":"#e0e0e0"}},l.src),
-                  React.createElement("td",{style:{padding:"6px 10px"}},l.dst),
-                  React.createElement("td",{style:{padding:"6px 10px",color:"#4fc3f7"}},l.user),
-                  React.createElement("td",{style:{padding:"6px 10px",color:"#aaa"}},l.host),
-                  React.createElement("td",{style:{padding:"6px 10px"}},React.createElement("span",{style:{padding:"2px 6px",borderRadius:3,fontSize:10,background:typeBg(l.type),color:typeCol(l.type)}},l.type)),
-                  React.createElement("td",{style:{padding:"6px 10px"}},React.createElement("span",{style:{color:l.status==="success"?"#6bbd5b":"#ff4444",fontWeight:600}},l.status)),
-                  React.createElement("td",{style:{padding:"6px 10px",color:"#aaa",maxWidth:300,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},l.detail)
-                ))
-              )
-            )
-          )
-        ),
+          {/* ══ OVERVIEW ══ */}
+          {activeTab==="overview"&&(
+            <div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+                {stats.map((s,i)=>(
+                  <div key={i} style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                      <div>
+                        <div style={{fontSize:10,color:"#666",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:5}}>{s.label}</div>
+                        <div style={{fontSize:26,fontWeight:800,letterSpacing:"-1px"}}>{s.value}</div>
+                      </div>
+                      <div style={{width:30,height:30,borderRadius:6,background:s.color+"15",display:"flex",alignItems:"center",justifyContent:"center"}}>{s.icon(s.color,14)}</div>
+                    </div>
+                    <div style={{marginTop:8}}><MiniBar data={s.spark} color={s.color}/></div>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10,marginBottom:12}}>
+                <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14}}>
+                  <div style={{fontSize:12,fontWeight:700,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+                    {I.activity("#6bbd5b",13)} Login Activity by Day
+                    <span style={{marginLeft:"auto",display:"flex",gap:10,fontSize:10}}>
+                      <span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:7,height:7,borderRadius:2,background:"#6bbd5b",display:"inline-block"}}/>Success</span>
+                      <span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:7,height:7,borderRadius:2,background:"#ff4444",display:"inline-block"}}/>Failure</span>
+                    </span>
+                  </div>
+                  <TimeChart data={loginChart} width={500} height={170}/>
+                </div>
+                <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14}}>
+                  <div style={{fontSize:12,fontWeight:700,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>{I.alert("#ff4444",13)} Alerts by Severity</div>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:16}}>
+                    <DonutChart segments={[{value:sevCounts.critical,color:SEV.critical},{value:sevCounts.high,color:SEV.high}]} size={110}/>
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      {Object.entries(sevCounts).filter(([_,v])=>v>0).map(([k,v])=>(
+                        <div key={k} style={{display:"flex",alignItems:"center",gap:7,fontSize:11}}>
+                          <span style={{width:7,height:7,borderRadius:2,background:SEV[k],display:"inline-block"}}/>
+                          <span style={{color:"#999",textTransform:"capitalize"}}>{k}</span>
+                          <span style={{fontWeight:700,marginLeft:4}}>{v}</span>
+                        </div>
+                      ))}
+                      <div style={{marginTop:4,paddingTop:4,borderTop:"1px solid #222",fontSize:10,color:"#555"}}>
+                        MITRE Coverage: <span style={{color:"#6bbd5b",fontWeight:700}}>{mitreCoverage.pct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14}}>
+                  <div style={{fontSize:12,fontWeight:700,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>{I.globe("#ff8c00",13)} Top Source IPs (Failed Auth)</div>
+                  {topIPs.map(([ip,count],i)=>(
+                    <div key={ip} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:i<topIPs.length-1?"1px solid #1a1a1a":"none"}}>
+                      <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,flex:1,color:!ip.startsWith("10.")?"#ff8c00":"#e0e0e0"}}>{ip}</span>
+                      <div style={{width:100,height:5,background:"#1e1e1e",borderRadius:3,overflow:"hidden"}}>
+                        <div style={{width:`${(count/topIPs[0][1])*100}%`,height:"100%",background:count>3?"#ff4444":"#ff8c00",borderRadius:3}}/>
+                      </div>
+                      <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:"#ff4444",fontWeight:700,width:24,textAlign:"right"}}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14}}>
+                  <div style={{fontSize:12,fontWeight:700,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>{I.skull("#ff4444",13)} Critical Alerts</div>
+                  {ALERTS.filter(a=>a.sev==="critical").map(a=>(
+                    <div key={a.id} className="al-row" onClick={()=>{setSelectedAlert(a);setActiveTab("alerts");}}
+                      style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"1px solid #1a1a1a",cursor:"pointer"}}>
+                      <span style={{width:7,height:7,borderRadius:4,background:SEV[a.sev],flexShrink:0}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:11,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.title}</div>
+                        <div style={{fontSize:10,color:"#555"}}>{a.time}</div>
+                      </div>
+                      {I.chevR("#333",13)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
-        /* ═══ INVESTIGATION ═══ */
-        activeTab==="investigation"&&React.createElement("div",null,
-          React.createElement("h2",{style:{margin:"0 0 16px",fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}},I.eye("#ffd700",16)," Investigation \u2014 Operation Credential Harvest"),
-          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}},
-            React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
-              React.createElement("h3",{style:{margin:"0 0 12px",fontSize:14,fontWeight:700,color:"#ffd700"}},"Attack Timeline"),
-              React.createElement(AttackTimeline,{events:[
-                {time:"Mar 4, 10:42",title:"Phishing emails delivered (3 recipients)",sev:"high",mitre:"T1566.002"},
-                {time:"Mar 4, 10:55",title:"jsmith submits credentials to fake portal",sev:"critical",mitre:"T1056.003"},
-                {time:"Mar 5, 02:14",title:"RDP brute-force from Tor \u2192 success",sev:"critical",mitre:"T1110.001"},
-                {time:"Mar 6, 08:47",title:"Impossible travel: VPN from Moscow",sev:"critical",mitre:"T1078"},
-                {time:"Mar 7, 01:15",title:"Lateral movement via SMB + SSH",sev:"critical",mitre:"T1021.002"},
-                {time:"Mar 7, 01:22",title:"Encoded PowerShell execution",sev:"high",mitre:"T1059.001"},
-                {time:"Mar 8, 02:00",title:"Persistence via scheduled task",sev:"high",mitre:"T1053.005"},
-                {time:"Mar 8\u20139, 22:00",title:"Large file uploads (45MB + 62MB)",sev:"critical",mitre:"T1567.002"},
-                {time:"Mar 10, 03:00",title:"Shadow copy deletion + log clearing",sev:"critical",mitre:"T1070.001"},
-              ]})
-            ),
-            React.createElement("div",null,
-              React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16,marginBottom:16}},
-                React.createElement("h3",{style:{margin:"0 0 12px",fontSize:14,fontWeight:700,color:"#ff4444"}},"Indicators of Compromise"),
-                [{type:"Domain",val:"merid1anfg.com",ctx:"Typosquatted domain"},{type:"IP",val:"185.220.101.42",ctx:"Tor exit node"},{type:"IP",val:"91.234.56.78",ctx:"VPN from Moscow"},{type:"IP",val:"198.51.100.50",ctx:"Exfil destination"},{type:"Email",val:"hr-updates@merid1anfg.com",ctx:"Phishing sender"},{type:"File",val:"C:\\temp\\update.ps1",ctx:"Persistence script"},{type:"Account",val:"jsmith",ctx:"Compromised user"}].map((ioc,i)=>
-                  React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:i<6?"1px solid #282828":"none",fontSize:12}},
-                    React.createElement("span",{style:{padding:"2px 6px",borderRadius:3,fontSize:10,background:"#ff444422",color:"#ff8c00",fontWeight:600,width:55,textAlign:"center",flexShrink:0}},ioc.type),
-                    React.createElement("span",{style:{fontFamily:"'JetBrains Mono',monospace",flex:1}},ioc.val),
-                    React.createElement("span",{style:{color:"#666",fontSize:11}},ioc.ctx)
-                  )
-                )
-              ),
-              React.createElement("div",{style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,padding:16}},
-                React.createElement("h3",{style:{margin:"0 0 12px",fontSize:14,fontWeight:700,color:"#6bbd5b"}},"Affected Systems"),
-                [{host:"WS-FIN-012",ip:"10.0.0.105",role:"Primary compromise",sev:"critical"},{host:"WS-HR-003",ip:"10.0.0.110",role:"Lateral movement",sev:"high"},{host:"WS-IT-007",ip:"10.0.0.120",role:"Lateral movement",sev:"high"},{host:"linux-web-01",ip:"10.0.0.30",role:"SSH access",sev:"high"},{host:"DC-01",ip:"10.0.0.10",role:"RDP target",sev:"critical"}].map((s,i)=>
-                  React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:i<4?"1px solid #282828":"none"}},
-                    I.monitor(SEV[s.sev],14),
-                    React.createElement("div",{style:{flex:1}},
-                      React.createElement("div",{style:{fontSize:12,fontWeight:700}},s.host," ",React.createElement("span",{style:{color:"#666",fontWeight:400}},"(",s.ip,")")),
-                      React.createElement("div",{style:{fontSize:11,color:"#888"}},s.role)
-                    ),
-                    React.createElement("span",{style:{width:8,height:8,borderRadius:4,background:SEV[s.sev]}})
-                  )
-                )
-              )
-            )
-          )
-        ),
+          {/* ══ ALERTS ══ */}
+          {activeTab==="alerts"&&(
+            <div style={{display:selectedAlert?"grid":"block",gridTemplateColumns:selectedAlert?"1fr 1fr":"1fr",gap:14}}>
+              <div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                  <h2 style={{margin:0,fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:7}}>{I.bell("#ff4444",15)} Alert Queue ({filteredAlerts.length})</h2>
+                  <div style={{display:"flex",gap:4}}>
+                    {["all","critical","high","medium"].map(f=>(
+                      <button key={f} onClick={()=>setAlertFilter(f)}
+                        style={{padding:"3px 10px",borderRadius:4,border:`1px solid ${alertFilter===f?(f==="all"?"#6bbd5b":SEV[f]):"#252525"}`,
+                          background:alertFilter===f?(f==="all"?"#6bbd5b18":SEV[f]+"18"):"transparent",
+                          color:alertFilter===f?(f==="all"?"#6bbd5b":SEV[f]):"#666",fontSize:10,fontWeight:700,textTransform:"capitalize"}}>
+                        {f==="all"?`All (${ALERTS.length})`:`${f} (${ALERTS.filter(a=>a.sev===f).length})`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {filteredAlerts.map(a=>{
+                  const st=alertStatuses[a.id]||a.status;
+                  return (
+                    <div key={a.id} className="al-row" onClick={()=>setSelectedAlert(a)}
+                      style={{background:selectedAlert?.id===a.id?"#182818":"#141414",border:`1px solid ${selectedAlert?.id===a.id?"#6bbd5b33":"#1e1e1e"}`,
+                        borderRadius:7,padding:12,marginBottom:7,cursor:"pointer",borderLeft:`3px solid ${SEV[a.sev]}`}}>
+                      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+                        <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:3,background:SEV[a.sev]+"22",color:SEV[a.sev],textTransform:"uppercase"}}>{a.sev}</span>
+                        <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#555"}}>{a.id}</span>
+                        <span style={{fontSize:9,padding:"2px 6px",borderRadius:3,marginLeft:"auto",
+                          background:st==="new"?"#ff444418":st==="investigating"?"#ffd70018":st==="escalated"?"#ff8c0018":"#6bbd5b18",
+                          color:st==="new"?"#ff4444":st==="investigating"?"#ffd700":st==="escalated"?"#ff8c00":"#6bbd5b"}}>{st}</span>
+                      </div>
+                      <div style={{fontSize:12,fontWeight:700,marginBottom:4}}>{a.title}</div>
+                      <div style={{fontSize:10,color:"#555",display:"flex",gap:14}}>
+                        <span>{I.clock("#555",9)} {a.time}</span>
+                        <span>{I.globe("#555",9)} {a.src}</span>
+                        <span style={{fontFamily:"'JetBrains Mono',monospace",color:"#666"}}>{a.mitre}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {selectedAlert&&(
+                <div className="slide-in" style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:18,position:"sticky",top:0,maxHeight:"calc(100vh - 110px)",overflowY:"auto"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                    <div>
+                      <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:3,background:SEV[selectedAlert.sev]+"22",color:SEV[selectedAlert.sev],textTransform:"uppercase"}}>{selectedAlert.sev}</span>
+                      <h3 style={{margin:"7px 0 0",fontSize:14,fontWeight:700}}>{selectedAlert.title}</h3>
+                    </div>
+                    <button onClick={()=>setSelectedAlert(null)} style={{background:"none",border:"none",padding:0}}>{I.x("#555",15)}</button>
+                  </div>
+                  <div style={{background:"#0d0d0d",borderRadius:5,padding:12,marginBottom:12,fontSize:11,lineHeight:1.8,color:"#bbb",fontFamily:"'JetBrains Mono',monospace"}}>{selectedAlert.desc}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:12}}>
+                    {[["Source IP",selectedAlert.src],["User",selectedAlert.user],["MITRE ID",selectedAlert.mitre],["Time",selectedAlert.time]].map(([k,v])=>(
+                      <div key={k} style={{background:"#0d0d0d",borderRadius:4,padding:9}}>
+                        <div style={{fontSize:9,color:"#555",textTransform:"uppercase",fontWeight:700,marginBottom:3}}>{k}</div>
+                        <div style={{fontSize:11,fontFamily:"'JetBrains Mono',monospace",color:"#e0e0e0"}}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <div style={{fontSize:10,color:"#555",textTransform:"uppercase",fontWeight:700,marginBottom:7,display:"flex",alignItems:"center",gap:5}}>{I.check("#6bbd5b",11)} Remediation Steps</div>
+                    {selectedAlert.fix.map((step,i)=>(
+                      <div key={i} style={{display:"flex",gap:8,marginBottom:6}}>
+                        <span style={{color:"#6bbd5b",flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:10,marginTop:1}}>{String(i+1).padStart(2,"0")}</span>
+                        <span style={{fontSize:11,color:"#bbb",lineHeight:1.6}}>{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <div style={{fontSize:10,color:"#555",textTransform:"uppercase",fontWeight:700,marginBottom:5}}>Analyst Notes</div>
+                    <textarea rows={3} value={alertNotes[selectedAlert.id]||""} onChange={e=>setAlertNotes({...alertNotes,[selectedAlert.id]:e.target.value})} placeholder="Add investigation notes, findings, or escalation details..."/>
+                  </div>
+                  <div style={{display:"flex",gap:6}}>
+                    {["investigating","escalated","closed"].map(s=>(
+                      <button key={s} onClick={()=>setAlertStatuses({...alertStatuses,[selectedAlert.id]:s})}
+                        style={{flex:1,padding:"7px 0",borderRadius:4,
+                          border:`1px solid ${s==="investigating"?"#ffd700":s==="escalated"?"#ff4444":"#6bbd5b"}44`,
+                          background:s==="investigating"?"#ffd70011":s==="escalated"?"#ff444411":"#6bbd5b11",
+                          color:s==="investigating"?"#ffd700":s==="escalated"?"#ff4444":"#6bbd5b",
+                          fontSize:10,fontWeight:700,textTransform:"capitalize"}}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-        /* ═══ MITRE ═══ */
-        activeTab==="mitre"&&React.createElement("div",null,
-          React.createElement("h2",{style:{margin:"0 0 16px",fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}},I.shield("#ff4444",16)," MITRE ATT&CK Mapping"),
-          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}},
-            [
-              {tactic:"Initial Access",techs:[{id:"T1566.002",name:"Spearphishing Link",ev:"Phishing from merid1anfg.com"},{id:"T1078",name:"Valid Accounts",ev:"Harvested creds via RDP + VPN"}],color:"#ff4444"},
-              {tactic:"Execution",techs:[{id:"T1059.001",name:"PowerShell",ev:"Encoded: Invoke-WebRequest"}],color:"#ff8c00"},
-              {tactic:"Persistence",techs:[{id:"T1053.005",name:"Scheduled Task",ev:"Fake WindowsUpdate task"}],color:"#ffd700"},
-              {tactic:"Credential Access",techs:[{id:"T1110.001",name:"Password Guessing",ev:"RDP brute-force from Tor"},{id:"T1056.003",name:"Web Portal Capture",ev:"Fake benefits portal"}],color:"#e040fb"},
-              {tactic:"Lateral Movement",techs:[{id:"T1021.002",name:"SMB Admin Shares",ev:"C$ + ADMIN$ access"}],color:"#4fc3f7"},
-              {tactic:"Exfiltration",techs:[{id:"T1567.002",name:"Exfil to Cloud",ev:"transfer.sh + pastebin"}],color:"#6bbd5b"},
-              {tactic:"Defense Evasion",techs:[{id:"T1070.001",name:"Clear Event Logs",ev:"vssadmin + wevtutil"}],color:"#78909c"},
-              {tactic:"Collection",techs:[{id:"T1005",name:"Data from Local System",ev:"HR/Finance share data"}],color:"#ce93d8"},
-            ].map((t,i) => React.createElement("div",{key:i,style:{background:"#1a1a1a",border:"1px solid #282828",borderRadius:8,overflow:"hidden"}},
-              React.createElement("div",{style:{background:t.color+"22",borderBottom:`2px solid ${t.color}`,padding:"10px 14px"}},
-                React.createElement("div",{style:{fontSize:12,fontWeight:800,color:t.color,textTransform:"uppercase",letterSpacing:"0.5px"}},t.tactic)
-              ),
-              React.createElement("div",{style:{padding:12}},
-                t.techs.map((tech,j) => React.createElement("div",{key:j,style:{marginBottom:j<t.techs.length-1?10:0}},
-                  React.createElement("div",{style:{fontSize:11,fontWeight:700}},tech.id),
-                  React.createElement("div",{style:{fontSize:11,color:"#aaa"}},tech.name),
-                  React.createElement("div",{style:{fontSize:10,color:"#666",marginTop:2,fontStyle:"italic"}},tech.ev)
-                ))
-              )
-            ))
-          )
-        )
-      )
-    )
+          {/* ══ EVENTS ══ */}
+          {activeTab==="events"&&(
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <h2 style={{margin:0,fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:7}}>
+                  {I.terminal("#6bbd5b",15)} Events
+                  {searchResults&&<span style={{fontSize:11,color:"#666",fontWeight:400}}> — "{searchResults}" ({filteredLogs.length})</span>}
+                </h2>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <select value={evTypeFilter} onChange={e=>setEvTypeFilter(e.target.value)} style={{fontSize:11}}>
+                    {evTypes.map(t=><option key={t} value={t}>{t==="all"?"All Types":t}</option>)}
+                  </select>
+                  {searchResults&&<button onClick={()=>{setSearchResults(null);setQuery("");}} style={{background:"#ff444418",border:"1px solid #ff444433",color:"#ff4444",borderRadius:4,padding:"3px 10px",fontSize:10}}>Clear</button>}
+                </div>
+              </div>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                  <thead>
+                    <tr style={{borderBottom:"2px solid #222"}}>
+                      {["Time","Src IP","Dst IP","User","Host","Type","Status","Details"].map(h=>(
+                        <th key={h} style={{textAlign:"left",padding:"7px 8px",fontSize:9,textTransform:"uppercase",color:"#555",fontWeight:700,letterSpacing:"0.5px"}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLogs.map((l,i)=>(
+                      <React.Fragment key={i}>
+                        <tr className="ev-row" onClick={()=>setExpandedLog(expandedLog===i?null:i)}
+                          style={{borderBottom:"1px solid #1a1a1a",cursor:"pointer",
+                            background:l.mal?(expandedLog===i?"#2a1414":"#1e1010"):(expandedLog===i?"#182818":i%2===0?"#121212":"#141414")}}>
+                          <td style={{padding:"5px 8px",color:"#555",whiteSpace:"nowrap"}}>{l.t}</td>
+                          <td style={{padding:"5px 8px",color:!l.src.startsWith("10.")&&l.src!=="N/A"?"#ff8c00":"#e0e0e0"}}>{l.src}</td>
+                          <td style={{padding:"5px 8px",color:"#888"}}>{l.dst}</td>
+                          <td style={{padding:"5px 8px",color:"#4fc3f7"}}>{l.user}</td>
+                          <td style={{padding:"5px 8px",color:"#888"}}>{l.host}</td>
+                          <td style={{padding:"5px 8px"}}>
+                            <span style={{padding:"2px 6px",borderRadius:3,fontSize:9,background:typeBg(l.type),color:typeCol(l.type)}}>{l.type}</span>
+                          </td>
+                          <td style={{padding:"5px 8px"}}>
+                            <span style={{color:l.status==="success"?"#6bbd5b":"#ff4444",fontWeight:700}}>{l.status}</span>
+                          </td>
+                          <td style={{padding:"5px 8px",color:l.mal?"#ff8c00":"#666",maxWidth:280,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.detail}</td>
+                        </tr>
+                        {expandedLog===i&&(
+                          <tr style={{background:"#0d0d0d",borderBottom:"1px solid #1e1e1e"}}>
+                            <td colSpan={8} style={{padding:"10px 12px"}}>
+                              <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                                {Object.entries(l).map(([k,v])=>(
+                                  <div key={k} style={{minWidth:120}}>
+                                    <div style={{fontSize:9,color:"#555",textTransform:"uppercase",fontWeight:700,marginBottom:2}}>{k}</div>
+                                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:k==="mal"&&v?"#ff4444":k==="attack"?"#ff8c00":"#ccc"}}>{String(v)}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              {l.mal&&<div style={{marginTop:8,padding:"6px 10px",background:"#ff444412",borderRadius:4,border:"1px solid #ff444433",fontSize:11,color:"#ff8c00"}}>
+                                ⚠ Malicious event — Attack type: <strong>{l.attack}</strong>
+                              </div>}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ══ INVESTIGATION ══ */}
+          {activeTab==="investigation"&&(
+            <div>
+              <h2 style={{margin:"0 0 14px",fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:7}}>{I.eye("#ffd700",15)} Investigation — Operation Credential Harvest</h2>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                <div>
+                  <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14,marginBottom:12}}>
+                    <h3 style={{margin:"0 0 12px",fontSize:13,fontWeight:700,color:"#ffd700",display:"flex",alignItems:"center",gap:6}}>{I.zap("#ffd700",13)} Attack Timeline</h3>
+                    <AttackTimeline events={[
+                      {time:"Mar 4, 10:42",title:"Phishing emails delivered (3 recipients)",sev:"high",mitre:"T1566.002"},
+                      {time:"Mar 4, 10:56",title:"jsmith submits credentials to fake portal",sev:"critical",mitre:"T1056.003"},
+                      {time:"Mar 5, 02:14",title:"RDP brute-force from Tor → success on DC-01",sev:"critical",mitre:"T1110.001"},
+                      {time:"Mar 6, 08:47",title:"Impossible travel: VPN from Moscow (jsmith)",sev:"critical",mitre:"T1078"},
+                      {time:"Mar 7, 01:15",title:"Lateral movement via SMB admin shares + SSH",sev:"critical",mitre:"T1021.002"},
+                      {time:"Mar 7, 01:22",title:"Encoded PowerShell: Invoke-WebRequest",sev:"high",mitre:"T1059.001"},
+                      {time:"Mar 7, 01:25",title:"C2 via pastebin.com HTTP POST",sev:"high",mitre:"T1071.001"},
+                      {time:"Mar 8, 02:00",title:"Dual persistence: Sched. task + Registry Run key",sev:"high",mitre:"T1053.005"},
+                      {time:"Mar 8–9, 22:00",title:"Data exfiltration: 45MB + 62MB to transfer.sh",sev:"critical",mitre:"T1567.002"},
+                      {time:"Mar 10, 03:00",title:"Shadow copy deletion + Security/System log wipe",sev:"critical",mitre:"T1070.001"},
+                    ]}/>
+                  </div>
+                  <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14}}>
+                    <h3 style={{margin:"0 0 12px",fontSize:13,fontWeight:700,color:"#4fc3f7",display:"flex",alignItems:"center",gap:6}}>{I.users("#4fc3f7",13)} Threat Actor Profile</h3>
+                    {[
+                      ["Campaign","Operation Credential Harvest"],
+                      ["Actor Type","Likely financially motivated APT or ransomware affiliate"],
+                      ["Initial Vector","Phishing (typosquatted domain) → credential theft"],
+                      ["Infrastructure","Tor exit node (185.220.101.42) + Russian VPN (91.234.56.78)"],
+                      ["Exfil Destination","transfer.sh (107MB+) + pastebin.com (C2)"],
+                      ["Duration","Mar 4–Mar 10 (7 days — active threat actor in environment)"],
+                      ["TTP Pattern","Matches Conti/BlackBasta pre-ransomware playbook"],
+                      ["Risk Level","CRITICAL — ransomware deployment may be imminent"],
+                    ].map(([k,v],i)=>(
+                      <div key={i} style={{display:"flex",gap:10,padding:"5px 0",borderBottom:i<7?"1px solid #1a1a1a":"none",fontSize:11}}>
+                        <span style={{color:"#555",minWidth:110,flexShrink:0}}>{k}</span>
+                        <span style={{color:"#ccc"}}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14,marginBottom:12}}>
+                    <h3 style={{margin:"0 0 12px",fontSize:13,fontWeight:700,color:"#ff4444",display:"flex",alignItems:"center",gap:6}}>{I.alert("#ff4444",13)} Indicators of Compromise</h3>
+                    {[
+                      {type:"Domain",val:"merid1anfg.com",ctx:"Typosquatted domain (phishing)"},
+                      {type:"Domain",val:"merid1anfg-benefits.com",ctx:"Credential harvesting portal"},
+                      {type:"IP",val:"185.220.101.42",ctx:"Tor exit node — RDP brute force"},
+                      {type:"IP",val:"91.234.56.78",ctx:"VPN — Moscow, RU (impossible travel)"},
+                      {type:"IP",val:"198.51.100.50",ctx:"Exfiltration destination (transfer.sh)"},
+                      {type:"Email",val:"hr-updates@merid1anfg.com",ctx:"Phishing sender"},
+                      {type:"File",val:"C:\\temp\\update.ps1",ctx:"Malicious persistence script"},
+                      {type:"Task",val:"WindowsUpdate (fake)",ctx:"Malicious scheduled task"},
+                      {type:"RegKey",val:"HKCU\\...\\Run: update",ctx:"Registry persistence"},
+                      {type:"Account",val:"jsmith",ctx:"Compromised domain user"},
+                    ].map((ioc,i)=>(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:7,padding:"4px 0",borderBottom:i<9?"1px solid #1a1a1a":"none",fontSize:11}}>
+                        <span style={{padding:"1px 6px",borderRadius:3,fontSize:9,background:"#ff444418",color:"#ff8c00",fontWeight:700,width:52,textAlign:"center",flexShrink:0}}>{ioc.type}</span>
+                        <span style={{fontFamily:"'JetBrains Mono',monospace",flex:1,fontSize:10}}>{ioc.val}</span>
+                        <span style={{color:"#555",fontSize:10}}>{ioc.ctx}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14,marginBottom:12}}>
+                    <h3 style={{margin:"0 0 10px",fontSize:13,fontWeight:700,color:"#6bbd5b",display:"flex",alignItems:"center",gap:6}}>{I.check("#6bbd5b",13)} Containment Checklist ({Object.values(containmentDone).filter(Boolean).length}/{CONTAINMENT.length})</h3>
+                    <div style={{maxHeight:200,overflowY:"auto"}}>
+                      {CONTAINMENT.map(item=>(
+                        <label key={item.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"5px 0",borderBottom:"1px solid #1a1a1a",cursor:"pointer"}}>
+                          <input type="checkbox" checked={!!containmentDone[item.id]} onChange={e=>setContainmentDone({...containmentDone,[item.id]:e.target.checked})} style={{marginTop:2}}/>
+                          <span style={{fontSize:11,color:containmentDone[item.id]?"#555":"#bbb",textDecoration:containmentDone[item.id]?"line-through":"none",lineHeight:1.5}}>{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div style={{marginTop:8,height:4,background:"#1e1e1e",borderRadius:2,overflow:"hidden"}}>
+                      <div style={{width:`${(Object.values(containmentDone).filter(Boolean).length/CONTAINMENT.length)*100}%`,height:"100%",background:"#6bbd5b",borderRadius:2,transition:"width 0.3s"}}/>
+                    </div>
+                  </div>
+                  <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14}}>
+                    <h3 style={{margin:"0 0 8px",fontSize:13,fontWeight:700,color:"#888"}}>Case Notes</h3>
+                    <textarea rows={5} value={caseNotes} onChange={e=>setCaseNotes(e.target.value)} placeholder="Document findings, analyst observations, escalation decisions, and next steps here..."/>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══ MITRE ATT&CK ══ */}
+          {activeTab==="mitre"&&(
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <h2 style={{margin:0,fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:7}}>{I.shield("#ff4444",15)} MITRE ATT&CK Mapping</h2>
+                <div style={{display:"flex",gap:6}}>
+                  {["cards","matrix"].map(v=>(
+                    <button key={v} onClick={()=>{setMitreView(v);setSelectedTech(null);}}
+                      style={{padding:"4px 14px",borderRadius:4,border:`1px solid ${mitreView===v?"#6bbd5b":"#252525"}`,
+                        background:mitreView===v?"#6bbd5b18":"transparent",color:mitreView===v?"#6bbd5b":"#555",fontSize:11,fontWeight:700,textTransform:"capitalize"}}>{v==="cards"?"Cards":"Heatmap"}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Coverage summary */}
+              <div style={{display:"flex",gap:10,marginBottom:14,padding:"10px 14px",background:"#141414",borderRadius:8,border:"1px solid #1e1e1e",alignItems:"center"}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:10,color:"#555",textTransform:"uppercase",fontWeight:700,marginBottom:4}}>TTP Detection Coverage</div>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <div style={{flex:1,height:5,background:"#1e1e1e",borderRadius:3,overflow:"hidden",display:"flex"}}>
+                      <div style={{width:`${(mitreCoverage.det/mitreCoverage.tot)*100}%`,background:"#6bbd5b",borderRadius:"3px 0 0 3px"}}/>
+                      <div style={{width:`${(mitreCoverage.sus/mitreCoverage.tot)*100}%`,background:"#ffd700"}}/>
+                    </div>
+                    <span style={{fontSize:11,fontWeight:700,color:"#6bbd5b"}}>{mitreCoverage.pct}%</span>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:16}}>
+                  {[["Detected",mitreCoverage.det,"#6bbd5b"],["Suspected",mitreCoverage.sus,"#ffd700"],["Not Seen",mitreCoverage.no,"#444"]].map(([l,v,c])=>(
+                    <div key={l} style={{textAlign:"center"}}>
+                      <div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div>
+                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase"}}>{l}</div>
+                    </div>
+                  ))}
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:18,fontWeight:800,color:"#888"}}>{mitreCoverage.tot}</div>
+                    <div style={{fontSize:9,color:"#555",textTransform:"uppercase"}}>Total TTPs</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:selectedTech?"1fr 380px":"1fr",gap:14}}>
+                <div>
+                  {mitreView==="matrix"&&<MitreHeatmapView matrix={MITRE_MATRIX} selected={selectedTech} onSelect={(tech,tac)=>{setSelectedTech(tech);setSelectedTactic(tac);}}/>}
+                  {mitreView==="cards"&&(
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+                      {MITRE_MATRIX.map(t=>(
+                        <div key={t.id} style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,overflow:"hidden"}}>
+                          <div style={{background:t.color+"18",borderBottom:`2px solid ${t.color}`,padding:"9px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <div>
+                              <div style={{fontSize:9,color:"#555"}}>{t.id}</div>
+                              <div style={{fontSize:11,fontWeight:800,color:t.color,textTransform:"uppercase",letterSpacing:"0.4px"}}>{t.tactic}</div>
+                            </div>
+                            <div style={{fontSize:10,color:"#555"}}>{t.techniques.filter(tc=>tc.status==="detected").length}/{t.techniques.length}</div>
+                          </div>
+                          <div style={{padding:"8px 10px"}}>
+                            {t.techniques.map((tech,j)=>(
+                              <div key={j} className="tech-cell" onClick={()=>{setSelectedTech(selectedTech?.id===tech.id?null:tech);setSelectedTactic(t);}}
+                                style={{display:"flex",alignItems:"flex-start",gap:7,marginBottom:j<t.techniques.length-1?7:0,padding:"5px 7px",borderRadius:4,cursor:"pointer",
+                                  background:selectedTech?.id===tech.id?STCOL[tech.status]+"22":"transparent",
+                                  border:selectedTech?.id===tech.id?`1px solid ${STCOL[tech.status]}44`:"1px solid transparent"}}>
+                                <div style={{width:7,height:7,borderRadius:4,background:STCOL[tech.status],flexShrink:0,marginTop:3}}/>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                    <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:STCOL[tech.status],fontWeight:700}}>{tech.id}</span>
+                                    <span style={{fontSize:8,color:SEV[tech.sev],fontWeight:700,textTransform:"uppercase"}}>{tech.sev}</span>
+                                  </div>
+                                  <div style={{fontSize:11,color:"#bbb",lineHeight:1.3}}>{tech.name}</div>
+                                  {tech.evidence&&<div style={{fontSize:10,color:"#555",marginTop:2,fontStyle:"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tech.evidence}</div>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {selectedTech&&<TechDetailPanel tech={selectedTech} tactic={selectedTactic?.tactic} tacticColor={selectedTactic?.color} onClose={()=>setSelectedTech(null)}/>}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── STATUS BAR ── */}
+      <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#060606",borderTop:"1px solid #1a1a1a",padding:"3px 18px",display:"flex",gap:20,fontSize:9,color:"#444",fontFamily:"'JetBrains Mono',monospace",zIndex:100}}>
+        <span style={{color:"#6bbd5b"}}>● LIVE</span>
+        <span>EVENTS: {LOGS.length}</span>
+        <span style={{color:"#ff4444"}}>ALERTS: {ALERTS.length}</span>
+        <span>MITRE: {mitreCoverage.det}/{mitreCoverage.tot} detected</span>
+        <span style={{marginLeft:"auto"}}>Meridian SOC SIEM v9.2 | Analyst: MC | Incident: INC-2024-0304</span>
+      </div>
+    </div>
   );
 }
 
