@@ -918,9 +918,26 @@ function App() {
           {/* ══ INVESTIGATION ══ */}
           {activeTab==="investigation"&&(
             <div>
-              <h2 style={{margin:"0 0 14px",fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:7}}>{I.eye("#ffd700",15)} Investigation — Operation Credential Harvest</h2>
+              <h2 style={{margin:"0 0 12px",fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:7}}>{I.eye("#ffd700",15)} Investigation — Operation Credential Harvest</h2>
+
+              {/* Kill Chain Progress */}
+              <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",gap:12}}>
+                <div style={{fontSize:10,color:"#555",fontWeight:700,textTransform:"uppercase",flexShrink:0,minWidth:72}}>Kill Chain</div>
+                <div style={{flex:1,display:"flex",gap:2}}>
+                  {[{s:"Recon",c:"#e040fb",d:true},{s:"Weaponize",c:"#e040fb",d:true},{s:"Deliver",c:"#ff4444",d:true},{s:"Exploit",c:"#ff4444",d:true},{s:"Install",c:"#ff8c00",d:true},{s:"C2",c:"#ffd700",d:true},{s:"Exfil",c:"#ff4444",d:true},{s:"Impact",c:"#555",d:false}].map((p,i,a)=>(
+                    <div key={i} style={{flex:1}}>
+                      <div style={{height:5,background:p.d?p.c:"#1e1e1e",borderRadius:i===0?"3px 0 0 3px":i===a.length-1?"0 3px 3px 0":"0",marginBottom:4}}/>
+                      <div style={{fontSize:8,color:p.d?p.c:"#333",textTransform:"uppercase",textAlign:"center",letterSpacing:"0.2px"}}>{p.s}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{fontSize:10,fontWeight:700,color:"#ff4444",padding:"3px 10px",background:"#ff444412",border:"1px solid #ff444430",borderRadius:4,flexShrink:0,whiteSpace:"nowrap"}}>7 / 8 Stages</div>
+              </div>
+
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                {/* LEFT COLUMN */}
                 <div>
+                  {/* Attack Timeline */}
                   <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14,marginBottom:12}}>
                     <h3 style={{margin:"0 0 12px",fontSize:13,fontWeight:700,color:"#ffd700",display:"flex",alignItems:"center",gap:6}}>{I.zap("#ffd700",13)} Attack Timeline</h3>
                     <AttackTimeline events={[
@@ -930,43 +947,109 @@ function App() {
                       {time:"Mar 6, 08:47",title:"Impossible travel: VPN from Moscow (jsmith)",sev:"critical",mitre:"T1078"},
                       {time:"Mar 7, 01:15",title:"Lateral movement via SMB admin shares + SSH",sev:"critical",mitre:"T1021.002"},
                       {time:"Mar 7, 01:22",title:"Encoded PowerShell: Invoke-WebRequest",sev:"high",mitre:"T1059.001"},
-                      {time:"Mar 7, 01:25",title:"C2 via pastebin.com HTTP POST",sev:"high",mitre:"T1071.001"},
+                      {time:"Mar 7, 01:25",title:"C2 beacon via pastebin.com HTTP POST",sev:"high",mitre:"T1071.001"},
                       {time:"Mar 8, 02:00",title:"Dual persistence: Sched. task + Registry Run key",sev:"high",mitre:"T1053.005"},
                       {time:"Mar 8–9, 22:00",title:"Data exfiltration: 45MB + 62MB to transfer.sh",sev:"critical",mitre:"T1567.002"},
                       {time:"Mar 10, 03:00",title:"Shadow copy deletion + Security/System log wipe",sev:"critical",mitre:"T1070.001"},
                     ]}/>
                   </div>
+
+                  {/* Network Topology */}
+                  <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14,marginBottom:12}}>
+                    <h3 style={{margin:"0 0 10px",fontSize:13,fontWeight:700,color:"#4fc3f7",display:"flex",alignItems:"center",gap:6}}>{I.monitor("#4fc3f7",13)} Attack Network Topology</h3>
+                    <div style={{overflowX:"auto"}}>
+                      <svg width={575} height={190} style={{display:"block"}}>
+                        <defs>
+                          <marker id="ah" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+                            <polygon points="0 0, 7 3.5, 0 7" fill="#555" opacity="0.8"/>
+                          </marker>
+                        </defs>
+                        {[
+                          {x1:90,y1:52,x2:155,y2:52,c:"#e040fb"},
+                          {x1:90,y1:138,x2:155,y2:138,c:"#e040fb"},
+                          {x1:235,y1:52,x2:270,y2:88,c:"#ff8c00"},
+                          {x1:235,y1:138,x2:270,y2:102,c:"#ffd700"},
+                          {x1:350,y1:88,x2:395,y2:50,c:"#ff8c00"},
+                          {x1:350,y1:95,x2:395,y2:95,c:"#ff8c00"},
+                          {x1:350,y1:102,x2:395,y2:143,c:"#ff8c00"},
+                          {x1:350,y1:95,x2:490,y2:95,c:"#ff4444"},
+                        ].map((e,i)=>(
+                          <line key={i} x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
+                            stroke={e.c} strokeWidth={1.5} strokeOpacity={0.55}
+                            strokeDasharray="5,3" markerEnd="url(#ah)"/>
+                        ))}
+                        {[
+                          {x:50,y:52,l:"Tor Exit Node",s:"185.220.101.42",c:"#e040fb",bold:false},
+                          {x:50,y:138,l:"Phishing IP",s:"198.51.100.25",c:"#e040fb",bold:false},
+                          {x:195,y:52,l:"VPN-GW-01",s:"Entry Point",c:"#ff8c00",bold:false},
+                          {x:195,y:138,l:"MAIL-GW-01",s:"Mail Gateway",c:"#4fc3f7",bold:false},
+                          {x:310,y:95,l:"WS-FIN-012",s:"★ COMPROMISED",c:"#ff4444",bold:true},
+                          {x:435,y:50,l:"WS-HR-003",s:"Lateral Move",c:"#ff8c00",bold:false},
+                          {x:435,y:95,l:"WS-IT-007",s:"Lateral Move",c:"#ff8c00",bold:false},
+                          {x:435,y:143,l:"linux-web-01",s:"SSH Access",c:"#ff8c00",bold:false},
+                          {x:530,y:95,l:"transfer.sh",s:"107MB Exfil",c:"#ff4444",bold:false},
+                        ].map((n,i)=>(
+                          <g key={i}>
+                            <rect x={n.x-40} y={n.y-17} width={80} height={34} rx={3}
+                              fill={n.c+"12"} stroke={n.c} strokeWidth={n.bold?2:1} strokeOpacity={0.8}/>
+                            <text x={n.x} y={n.y-3} textAnchor="middle"
+                              fill={n.c} fontSize={8} fontWeight={n.bold?"bold":"normal"} fontFamily="monospace">{n.l}</text>
+                            <text x={n.x} y={n.y+10} textAnchor="middle"
+                              fill="#555" fontSize={7} fontFamily="monospace">{n.s}</text>
+                          </g>
+                        ))}
+                        <text x={6} y={183} fill="#333" fontSize={7} fontFamily="monospace">Dashed = attack path  |  Bold border = primary compromise  |  ★ = pivot point</text>
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Threat Actor Profile */}
                   <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14}}>
                     <h3 style={{margin:"0 0 12px",fontSize:13,fontWeight:700,color:"#4fc3f7",display:"flex",alignItems:"center",gap:6}}>{I.users("#4fc3f7",13)} Threat Actor Profile</h3>
                     {[
                       ["Campaign","Operation Credential Harvest"],
-                      ["Actor Type","Likely financially motivated APT or ransomware affiliate"],
+                      ["Actor Type","Financially motivated APT / ransomware affiliate"],
                       ["Initial Vector","Phishing (typosquatted domain) → credential theft"],
                       ["Infrastructure","Tor exit node (185.220.101.42) + Russian VPN (91.234.56.78)"],
-                      ["Exfil Destination","transfer.sh (107MB+) + pastebin.com (C2)"],
-                      ["Duration","Mar 4–Mar 10 (7 days — active threat actor in environment)"],
-                      ["TTP Pattern","Matches Conti/BlackBasta pre-ransomware playbook"],
+                      ["Exfil Destination","transfer.sh (107MB+) + pastebin.com (C2 beacon)"],
+                      ["Active Duration","Mar 4–Mar 10, 2024 (7 days undetected in environment)"],
+                      ["TTP Pattern","Matches Conti / BlackBasta pre-ransomware playbook"],
                       ["Risk Level","CRITICAL — ransomware deployment may be imminent"],
                     ].map(([k,v],i)=>(
                       <div key={i} style={{display:"flex",gap:10,padding:"5px 0",borderBottom:i<7?"1px solid #1a1a1a":"none",fontSize:11}}>
                         <span style={{color:"#555",minWidth:110,flexShrink:0}}>{k}</span>
-                        <span style={{color:"#ccc"}}>{v}</span>
+                        <span style={{color:k==="Risk Level"?"#ff4444":"#ccc",fontWeight:k==="Risk Level"?700:400}}>{v}</span>
                       </div>
                     ))}
                   </div>
                 </div>
+
+                {/* RIGHT COLUMN */}
                 <div>
+                  {/* IOCs with copy button */}
                   <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14,marginBottom:12}}>
-                    <h3 style={{margin:"0 0 12px",fontSize:13,fontWeight:700,color:"#ff4444",display:"flex",alignItems:"center",gap:6}}>{I.alert("#ff4444",13)} Indicators of Compromise</h3>
+                    <h3 style={{margin:"0 0 12px",fontSize:13,fontWeight:700,color:"#ff4444",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                      <span style={{display:"flex",alignItems:"center",gap:6}}>{I.alert("#ff4444",13)} Indicators of Compromise</span>
+                      <button onClick={()=>navigator.clipboard.writeText(
+                        ["[Domain] merid1anfg.com","[Domain] merid1anfg-benefits.com",
+                         "[IP] 185.220.101.42","[IP] 91.234.56.78","[IP] 198.51.100.50",
+                         "[Email] hr-updates@merid1anfg.com","[File] C:\\temp\\update.ps1",
+                         "[Task] WindowsUpdate (fake)","[RegKey] HKCU\\...\\Run: update",
+                         "[Account] jsmith"].join("\n")).catch(()=>{})}
+                        style={{background:"#4fc3f712",border:"1px solid #4fc3f730",color:"#4fc3f7",
+                          borderRadius:3,padding:"2px 9px",fontSize:9,fontWeight:700,cursor:"pointer"}}>
+                        COPY IOCs
+                      </button>
+                    </h3>
                     {[
-                      {type:"Domain",val:"merid1anfg.com",ctx:"Typosquatted domain (phishing)"},
-                      {type:"Domain",val:"merid1anfg-benefits.com",ctx:"Credential harvesting portal"},
-                      {type:"IP",val:"185.220.101.42",ctx:"Tor exit node — RDP brute force"},
-                      {type:"IP",val:"91.234.56.78",ctx:"VPN — Moscow, RU (impossible travel)"},
-                      {type:"IP",val:"198.51.100.50",ctx:"Exfiltration destination (transfer.sh)"},
+                      {type:"Domain",val:"merid1anfg.com",ctx:"Typosquatted (phishing)"},
+                      {type:"Domain",val:"merid1anfg-benefits.com",ctx:"Credential harvest portal"},
+                      {type:"IP",val:"185.220.101.42",ctx:"Tor exit — RDP brute force"},
+                      {type:"IP",val:"91.234.56.78",ctx:"Moscow VPN — impossible travel"},
+                      {type:"IP",val:"198.51.100.50",ctx:"Exfil destination (transfer.sh)"},
                       {type:"Email",val:"hr-updates@merid1anfg.com",ctx:"Phishing sender"},
-                      {type:"File",val:"C:\\temp\\update.ps1",ctx:"Malicious persistence script"},
-                      {type:"Task",val:"WindowsUpdate (fake)",ctx:"Malicious scheduled task"},
+                      {type:"File",val:"C:\\temp\\update.ps1",ctx:"Malicious PS1 script"},
+                      {type:"Task",val:"WindowsUpdate (fake)",ctx:"Scheduled task persistence"},
                       {type:"RegKey",val:"HKCU\\...\\Run: update",ctx:"Registry persistence"},
                       {type:"Account",val:"jsmith",ctx:"Compromised domain user"},
                     ].map((ioc,i)=>(
@@ -977,13 +1060,47 @@ function App() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Affected Systems */}
                   <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14,marginBottom:12}}>
-                    <h3 style={{margin:"0 0 10px",fontSize:13,fontWeight:700,color:"#6bbd5b",display:"flex",alignItems:"center",gap:6}}>{I.check("#6bbd5b",13)} Containment Checklist ({Object.values(containmentDone).filter(Boolean).length}/{CONTAINMENT.length})</h3>
-                    <div style={{maxHeight:200,overflowY:"auto"}}>
+                    <h3 style={{margin:"0 0 10px",fontSize:13,fontWeight:700,color:"#ff8c00",display:"flex",alignItems:"center",gap:6}}>{I.monitor("#ff8c00",13)} Affected Systems</h3>
+                    {[
+                      {host:"WS-FIN-012",ip:"10.0.0.105",sev:"critical",status:"Primary",role:"jsmith workstation — source of all attacker activity",tags:["Isolate NOW","Memory Dump","Reimage"]},
+                      {host:"DC-01",ip:"10.0.0.10",sev:"critical",status:"Targeted",role:"RDP target — brute force success, possible AD compromise",tags:["Audit AD","Reset Kerberos","Check GPOs"]},
+                      {host:"WS-HR-003",ip:"10.0.0.110",sev:"high",status:"Lateral",role:"SMB C$ accessed — HR data likely exfiltrated",tags:["Check Artifacts","EDR Scan"]},
+                      {host:"WS-IT-007",ip:"10.0.0.120",sev:"high",status:"Lateral",role:"ADMIN$ accessed — possible tool staging",tags:["Check Artifacts","EDR Scan"]},
+                      {host:"linux-web-01",ip:"10.0.0.30",sev:"high",status:"Lateral",role:"Off-hours SSH — check crontab and auth.log",tags:["Audit SSH","Check Crontab","Verify Integrity"]},
+                    ].map((s,i)=>(
+                      <div key={i} style={{padding:"7px 0",borderBottom:i<4?"1px solid #1a1a1a":"none"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                          {I.monitor(SEV[s.sev],12)}
+                          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700}}>{s.host}</span>
+                          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#555"}}>{s.ip}</span>
+                          <span style={{marginLeft:"auto",fontSize:9,padding:"1px 6px",borderRadius:3,
+                            background:SEV[s.sev]+"18",color:SEV[s.sev],fontWeight:700,textTransform:"uppercase"}}>{s.status}</span>
+                        </div>
+                        <div style={{fontSize:10,color:"#666",paddingLeft:20,marginBottom:4}}>{s.role}</div>
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap",paddingLeft:20}}>
+                          {s.tags.map(t=>(
+                            <span key={t} style={{fontSize:9,padding:"1px 6px",borderRadius:3,
+                              background:"#222",color:"#888",border:"1px solid #2a2a2a"}}>{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Containment Checklist */}
+                  <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14,marginBottom:12}}>
+                    <h3 style={{margin:"0 0 10px",fontSize:13,fontWeight:700,color:"#6bbd5b",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                      <span style={{display:"flex",alignItems:"center",gap:6}}>{I.check("#6bbd5b",13)} Containment Checklist</span>
+                      <span style={{fontSize:10,color:"#555",fontWeight:400}}>{Object.values(containmentDone).filter(Boolean).length}/{CONTAINMENT.length} done</span>
+                    </h3>
+                    <div style={{maxHeight:210,overflowY:"auto"}}>
                       {CONTAINMENT.map(item=>(
                         <label key={item.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"5px 0",borderBottom:"1px solid #1a1a1a",cursor:"pointer"}}>
                           <input type="checkbox" checked={!!containmentDone[item.id]} onChange={e=>setContainmentDone({...containmentDone,[item.id]:e.target.checked})} style={{marginTop:2}}/>
-                          <span style={{fontSize:11,color:containmentDone[item.id]?"#555":"#bbb",textDecoration:containmentDone[item.id]?"line-through":"none",lineHeight:1.5}}>{item.label}</span>
+                          <span style={{fontSize:11,color:containmentDone[item.id]?"#444":"#bbb",textDecoration:containmentDone[item.id]?"line-through":"none",lineHeight:1.5}}>{item.label}</span>
                         </label>
                       ))}
                     </div>
@@ -991,9 +1108,15 @@ function App() {
                       <div style={{width:`${(Object.values(containmentDone).filter(Boolean).length/CONTAINMENT.length)*100}%`,height:"100%",background:"#6bbd5b",borderRadius:2,transition:"width 0.3s"}}/>
                     </div>
                   </div>
+
+                  {/* Case Notes */}
                   <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:14}}>
-                    <h3 style={{margin:"0 0 8px",fontSize:13,fontWeight:700,color:"#888"}}>Case Notes</h3>
-                    <textarea rows={5} value={caseNotes} onChange={e=>setCaseNotes(e.target.value)} placeholder="Document findings, analyst observations, escalation decisions, and next steps here..."/>
+                    <h3 style={{margin:"0 0 8px",fontSize:13,fontWeight:700,color:"#888",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                      Case Notes
+                      {caseNotes&&<span style={{fontSize:9,color:"#6bbd5b",fontWeight:400}}>● saved</span>}
+                    </h3>
+                    <textarea rows={5} value={caseNotes} onChange={e=>setCaseNotes(e.target.value)}
+                      placeholder="Document findings, analyst observations, escalation decisions, and next steps here..."/>
                   </div>
                 </div>
               </div>
